@@ -1,0 +1,6 @@
+@SiorApi_HostAddress = http://localhost:5095
+
+GET {{SiorApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
