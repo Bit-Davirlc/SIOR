@@ -4,15 +4,21 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>SIOR - TCC</title>
+
 	<link rel="stylesheet" href="css/style.css">
+
+	<script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 </head>
 <body>
 	<nav class="navbar">
 		<ul class="nav-links">
-			<li><a href="#" id="navClientes" class="active">Clientes</a></li>
+			<li><a href="#" id="navClientes">Clientes</a></li>
 			<li><a href="#" id="navCategorias">Categorias</a></li>
 			<li><a href="#" id="navProdutos">Produtos</a></li>
 			<li><a href="#" id="navOrcamentos">Orçamentos</a></li>
+			<li><a href="#" id="navDesenho">Desenho</a></li>
 		</ul>
 		<button id="toggleTema" class="btn-toggle-tema" title="Alternar tema">🌙</button>
 	</nav>
@@ -181,12 +187,59 @@
 				</div>
 			</form>
 		</section>
+
+		<section id="secaoDesenho" class="hidden">
+			<h1>Módulo de Desenho Técnico</h1>
+
+			<div class="toolbar-desenho">
+				<label for="inputPlantaBaixa" class="btn-secundario">
+					Importar Planta Baixa
+					</label>
+					<input type="file" id="inputPlantaBaixa" accept="image/*" class="hidden">
+
+					<div class="toolbox">
+						</div>
+
+					<button id="btnExportarPNG" class="btn-secundario" style="margin-left: auto;">
+						Exportar como PNG
+					</button>
+					</div>
+
+				<div class="toolbox">
+					<span class="toolbox-title">Arraste para o canvas:</span>
+
+					<img src="https://img.icons8.com/ios-filled/50/workstation.png" 
+						id="tool-pc" 
+						class="tool-item" 
+						title="Ponto de Rede / PC" 
+						draggable="true">
+
+					<img src="https://img.icons8.com/ios-filled/50/router.png" 
+						id="tool-switch" 
+						class="tool-item" 
+						title="Switch / Roteador" 
+						draggable="true">
+
+					</div>
+
+			</div>
+
+			<div id="container-canvas"></div>
+		</section>
+
 	</main>
 
 	<!-- MODAL DETALHES -->
 	<div id="modalDetalhes" class="modal-container hidden">
-		<div class="modal-content">
+
+		<div class="modal-content" id="modalContentPDF">
+
 			<span id="modalClose" class="modal-close-btn">&times;</span>
+
+			<button type="button" id="btnBaixarPDF" class="btn-secundario btn-imprimir">
+				Baixar PDF
+			</button>
+
 			<h2>Detalhes do Orçamento <span id="modalOrcamentoId"></span></h2>
 			<p><strong>Cliente:</strong> <span id="modalClienteNome"></span></p>
 			<p><strong>Data:</strong> <span id="modalData"></span></p>
@@ -201,6 +254,8 @@
 			<h3 class="total-temp" id="modalValorTotal">Total: R$ 0.00</h3>
 		</div>
 	</div>
+
+
 
 	<script src="js/main.js"></script>
 </body>

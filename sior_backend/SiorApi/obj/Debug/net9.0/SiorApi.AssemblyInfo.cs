@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SiorApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b37cef4d4d2c45ed0bc8daea8b06a3c138e66cc5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0272a22ad161f4167fb90f431b99f983f6572edd")]
 [assembly: System.Reflection.AssemblyProductAttribute("SiorApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SiorApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

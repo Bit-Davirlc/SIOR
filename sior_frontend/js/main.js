@@ -13,6 +13,9 @@ const apiUrlOrcamentos = 'http://localhost:5095/api/orcamentos';
 let todosClientes = [];
 let todosProdutos = [];
 let itensOrcamentoTemporario = []; // <-- Guarda os itens do NOVO orçamento
+let idOrcamentoAberto = 0;
+let konvaImages = {}; // Armazena os 'Image' objects do Konva
+let dragItemId = null; // Guarda o ID do item sendo arrastado
 
 // -------------------------------------------------------------------
 // 3. SELETORES GERAIS (NAVEGAÇÃO E SEÇÕES)
@@ -21,37 +24,56 @@ const navLinks = {
 	clientes: document.getElementById('navClientes'),
 	categorias: document.getElementById('navCategorias'),
 	produtos: document.getElementById('navProdutos'),
-	orcamentos: document.getElementById('navOrcamentos'), // <-- NOVO
+	orcamentos: document.getElementById('navOrcamentos'),
+	desenho: document.getElementById('navDesenho'), // <-- NOVO
 };
 const secoes = {
 	clientes: document.getElementById('secaoClientes'),
 	categorias: document.getElementById('secaoCategorias'),
 	produtos: document.getElementById('secaoProdutos'),
 	orcamentos: document.getElementById('secaoOrcamentos'), // <-- NOVO
-	novoOrcamento: document.getElementById('secaoNovoOrcamento'), // <-- NOVO
+	novoOrcamento: document.getElementById('secaoNovoOrcamento'),
+	desenho: document.getElementById('secaoDesenho'), // <-- NOVO
 };
 const todasSecoes = document.querySelectorAll('main > section');
 
 // -------------------------------------------------------------------
 // 4. LÓGICA DE NAVEGAÇÃO
 // -------------------------------------------------------------------
+
 function mostrarSecao(idSecao) {
-	todasSecoes.forEach(secao => secao.classList.add('hidden'));
-	secoes[idSecao].classList.remove('hidden');
+    // 1. Esconde todas as seções
+    todasSecoes.forEach(secao => secao.classList.add('hidden'));
+
+    // 2. Mostra a seção clicada
+    if (secoes[idSecao]) { // Segurança para evitar erros
+        secoes[idSecao].classList.remove('hidden');
+    }
+
+    // 3. ATUALIZA A NAVEGAÇÃO (A MÁGICA ESTÁ AQUI)
+    // Remove 'active' de todos os links
+    Object.values(navLinks).forEach(link => {
+        link.classList.remove('active');
+    });
+
+    // Adiciona 'active' apenas no link correspondente
+    if (navLinks[idSecao]) { // Segurança para links como 'novoOrcamento'
+        navLinks[idSecao].classList.add('active');
+    }
 }
 
 navLinks.clientes.addEventListener('click', () => mostrarSecao('clientes'));
 navLinks.categorias.addEventListener('click', () => mostrarSecao('categorias'));
 navLinks.produtos.addEventListener('click', () => mostrarSecao('produtos'));
-navLinks.orcamentos.addEventListener('click', () => {
-	mostrarSecao('orcamentos');
-	carregarOrcamentos(); // Recarrega a lista ao clicar
-});
+navLinks.orcamentos.addEventListener('click', () => { mostrarSecao('orcamentos');
+	carregarOrcamentos();}); // Recarrega a lista ao clicar
+navLinks.desenho.addEventListener('click', () => mostrarSecao('desenho'));
 
 // -------------------------------------------------------------------
 // 5. LÓGICA DE CLIENTES (Sem alteração)
 // -------------------------------------------------------------------
-// const formCliente = document.getElementById('formCliente');
+
+const formCliente = document.getElementById('formCliente');
 const corpoTabelaClientes = document.getElementById('corpoTabelaClientes');
 const clienteIdInput = document.getElementById('clienteId');
 const nomeClienteInput = document.getElementById('nome');
@@ -126,6 +148,16 @@ async function excluirCliente(id) {
 	} catch (error) { console.error('Falha ao excluir cliente:', error); }
 }
 
+async function abrirModalDetalhes(id) {
+    idOrcamentoAberto = id; // <-- PASSO 2: Guarde o ID do orçamento
+    
+    try {
+        modalContainer.classList.add('is-active'); // (ou .remove('hidden'))
+    } catch (error) {
+        console.error("Falha ao abrir detalhes:", error);
+    }
+}
+
 formCliente.addEventListener('submit', salvarCliente);
 corpoTabelaClientes.addEventListener('click', (event) => {
 	if (event.target.classList.contains('btn-excluir')) {
@@ -139,7 +171,8 @@ corpoTabelaClientes.addEventListener('click', (event) => {
 // -------------------------------------------------------------------
 // 6. LÓGICA DE CATEGORIAS (Sem alteração)
 // -------------------------------------------------------------------
-// const formCategoria = document.getElementById('formCategoria');
+
+const formCategoria = document.getElementById('formCategoria');
 const corpoTabelaCategorias = document.getElementById('corpoTabelaCategorias');
 const categoriaIdInput = document.getElementById('categoriaId');
 const categoriaNomeInput = document.getElementById('categoriaNome');
@@ -220,7 +253,8 @@ corpoTabelaCategorias.addEventListener('click', (event) => {
 // -------------------------------------------------------------------
 // 7. LÓGICA DE PRODUTOS (Sem alteração)
 // -------------------------------------------------------------------
-// const formProduto = document.getElementById('formProduto');
+
+const formProduto = document.getElementById('formProduto');
 const corpoTabelaProdutos = document.getElementById('corpoTabelaProdutos');
 const produtoIdInput = document.getElementById('produtoId');
 const produtoNomeInput = document.getElementById('produtoNome');
@@ -578,9 +612,186 @@ function fecharModalDetalhes() {
 	modalContainer.classList.add('hidden');
 }
 
+// -------------------------------------------------------------------
+// 9. LÓGICA DE DESENHO 2D (Konva.js) (NOVO)
+// -------------------------------------------------------------------
+
+// --- Variáveis Globais do Konva ---
+let stage; // O "Palco" principal
+let backgroundLayer; // Camada para a planta baixa
+let objectLayer; // Camada para ícones (PCs, Switches)
+
+// --- Seletores do Módulo de Desenho ---
+const inputPlantaBaixa = document.getElementById('inputPlantaBaixa');
+
+function inicializarCanvas() {
+    // Só inicializa se o 'stage' não foi criado ainda
+    if (stage) return; 
+
+    const container = document.getElementById('container-canvas');
+    if (!container) return; // Segurança
+
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // 1. Criar o Palco (Stage)
+    stage = new Konva.Stage({
+        container: 'container-canvas', 
+        width: width,
+        height: height,
+    });
+
+    // 2. Criar as Camadas (Layers)
+    backgroundLayer = new Konva.Layer();
+    objectLayer = new Konva.Layer();
+    stage.add(backgroundLayer, objectLayer);
+
+    console.log("Canvas Konva inicializado.");
+
+    // --- LÓGICA DE DRAG AND DROP (D&D) ---
+
+    // 3. Ouvir o DRAGOVER no container
+    // (Necessário para que o navegador permita o 'drop')
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault(); // Permite soltar
+    });
+
+    // 4. Ouvir o DROP no container
+    container.addEventListener('drop', (e) => {
+        e.preventDefault();
+        
+        // Garante que o item arrastado é da nossa toolbox
+        if (dragItemId === null) return;
+
+        // Pega a posição do mouse RELATIVA ao stage
+        stage.setPointersPositions(e);
+        const pos = stage.getPointerPosition();
+        
+        // Adiciona o item no canvas
+        adicionarItemCanvas(pos.x, pos.y, dragItemId);
+
+        // Limpa o ID do item
+        dragItemId = null;
+    });
+}
+
+function exportarCanvasPNG() {
+    if (!stage) {
+        alert("O canvas ainda não foi inicializado.");
+        return;
+    }
+
+    // 1. Usa o método .toDataURL() do Konva para gerar um PNG
+    // Isso "achata" todas as camadas (fundo + objetos)
+    const dataURL = stage.toDataURL({ 
+        pixelRatio: 1 // Pode aumentar para 2 para maior resolução
+    });
+
+    // 2. Cria um link (<a>) temporário na memória
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = 'desenho_rede_sior.png'; // O nome do arquivo
+
+    // 3. Simula o clique no link para iniciar o download
+    document.body.appendChild(link); // (Precisa estar no DOM para o Firefox)
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Função para carregar a imagem da planta baixa
+function carregarPlantaBaixa(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Cria uma URL local temporária para a imagem
+    const imgUrl = URL.createObjectURL(file);
+
+    // Cria um objeto de Imagem do JavaScript
+    const imageObj = new Image();
+    imageObj.src = imgUrl;
+
+    // Espera a imagem carregar
+    imageObj.onload = () => {
+        // Limpa qualquer planta antiga
+        backgroundLayer.destroyChildren();
+
+        // Cria uma Imagem Konva
+        const konvaImage = new Konva.Image({
+            x: 0,
+            y: 0,
+            image: imageObj,
+            width: stage.width(), // Faz a imagem caber no canvas
+            height: stage.height(),
+            name: 'planta-baixa' // Dá um nome para referência
+        });
+
+        // Adiciona a imagem à camada de fundo
+        backgroundLayer.add(konvaImage);
+        
+        // Manda a camada de fundo para trás de todas
+        backgroundLayer.moveToBottom();
+        
+        // Redesenha a camada
+        backgroundLayer.draw();
+
+        // Limpa o valor do input para permitir carregar a mesma imagem de novo
+        event.target.value = null; 
+    };
+
+    imageObj.onerror = () => {
+        alert("Não foi possível carregar a imagem.");
+    }
+}
 
 // -------------------------------------------------------------------
-// 9. EVENT LISTENERS (Gatilhos)
+// (Nova Seção) 9.5: FUNÇÕES GLOBAIS DE DESENHO
+// -------------------------------------------------------------------
+function carregarAssetsKonva() {
+    // PC
+    konvaImages['tool-pc'] = new Image();
+    konvaImages['tool-pc'].crossOrigin = "Anonymous"; 
+    
+    // ADICIONE ?v=1 AQUI
+    konvaImages['tool-pc'].src = 'https://img.icons8.com/ios-filled/50/workstation.png?v=1'; 
+    konvaImages['tool-pc'].onerror = () => console.error("Falha ao carregar ícone PC");
+
+    // Switch
+    konvaImages['tool-switch'] = new Image();
+    konvaImages['tool-switch'].crossOrigin = "Anonymous"; 
+    
+    // ADICIONE ?v=1 AQUI
+    konvaImages['tool-switch'].src = 'https://img.icons8.com/ios-filled/50/router.png?v=1'; 
+    konvaImages['tool-switch'].onerror = () => console.error("Falha ao carregar ícone Switch");
+}
+
+// Função que cria o item no canvas
+function adicionarItemCanvas(x, y, id) {
+    if (!konvaImages[id]) {
+        console.error("Asset não carregado:", id);
+        return;
+    }
+
+    const konvaImage = new Konva.Image({
+        x: x,
+        y: y,
+        image: konvaImages[id],
+        width: 40,
+        height: 40,
+        draggable: true, // <-- Permite mover o ícone DEPOIS de soltar
+        name: 'objeto-rede' // Um nome para identificação
+    });
+
+    // Centraliza o ícone no cursor (opcional, mas bom)
+    konvaImage.offsetX(konvaImage.width() / 2);
+    konvaImage.offsetY(konvaImage.height() / 2);
+
+    // Adiciona à camada de objetos (a camada da frente)
+    objectLayer.add(konvaImage);
+    objectLayer.draw();
+}
+
+// -------------------------------------------------------------------
+// 10. EVENT LISTENERS (Gatilhos)
 // -------------------------------------------------------------------
 
 // Gatilho 1: Botão "Novo Orçamento"
@@ -634,9 +845,18 @@ modalContainer.addEventListener('click', (event) => {
 	}
 });
 
+// --- Gatilhos do Módulo de Desenho ---
+inputPlantaBaixa.addEventListener('change', carregarPlantaBaixa);
+
+// Gatilho especial: Inicializa o canvas QUANDO a aba de Desenho for clicada
+navLinks.desenho.addEventListener('click', () => {
+    mostrarSecao('desenho');
+    // Usamos setTimeout para garantir que o 'div' está visível antes de o Konva medir
+    setTimeout(inicializarCanvas, 10); 
+});
 
 // -------------------------------------------------------------------
-// 10. INICIALIZAÇÃO
+// 11. INICIALIZAÇÃO
 // -------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
 	// Define a aba "Orçamentos" como padrão
@@ -647,11 +867,41 @@ document.addEventListener('DOMContentLoaded', () => {
 	carregarProdutosGlobal();
 
 	// Carrega a lista inicial
+	carregarClientes();
+	carregarProdutos();
 	carregarOrcamentos();
+	carregarCategorias();
 
-	// (Não precisamos mais carregar clientes, categorias e produtos aqui,
-	// pois eles já são carregados globalmente ou não precisam estar
-	// na tela inicial)
+	const btnBaixar = document.getElementById('btnBaixarPDF');
+    btnBaixar.addEventListener('click', () => {
+        
+        // 1. Pega o elemento HTML que queremos converter
+        const elemento = document.getElementById('modalContentPDF');
+
+        // 2. Define as opções do PDF
+        const opt = {
+          margin:       0.5, // Margem em polegadas
+          filename:     `orcamento_${idOrcamentoAberto}.pdf`, // Nome do arquivo
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2 }, // Aumenta a qualidade da "foto"
+		  backgroundColor: '#ffffffff',
+          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        // 3. Roda a mágica!
+        html2pdf().from(elemento).set(opt).save();
+    });
+
+	carregarAssetsKonva(); // <-- ADICIONA AQUI
+
+    // --- Adiciona Listeners da Toolbox de Desenho ---
+    document.getElementById('tool-pc').addEventListener('dragstart', (e) => {
+        dragItemId = e.target.id;
+    });
+    document.getElementById('tool-switch').addEventListener('dragstart', (e) => {
+        dragItemId = e.target.id;
+    });
+	document.getElementById('btnExportarPNG').addEventListener('click', exportarCanvasPNG);
 });
 
 // ===== Alternância de Tema (Dark / Light) =====
