@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using SiorApi.Data;
+
 // Define uma política de CORS com um nome
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
@@ -17,6 +20,14 @@ builder.Services.AddCors(options =>
         });
 });
 
+// 1. Pega a Connection String do appsettings.json
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// 2. Registra o AppDbContext (a ponte) e diz para ele usar o SQL Server
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// 3. Registra os outros serviços
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -29,7 +40,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 // Diz ao app para USAR a política de CORS <--
 app.UseCors(MyAllowSpecificOrigins); 
