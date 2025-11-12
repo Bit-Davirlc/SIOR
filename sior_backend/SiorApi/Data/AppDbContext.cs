@@ -14,6 +14,8 @@ namespace SiorApi.Data
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Categoria> Categorias { get; set; }
         public DbSet<Produto> Produtos { get; set; }
+        public DbSet<Orcamento> Orcamentos { get; set; }
+        public DbSet<OrcamentoItem> OrcamentoItens { get; set; }
 
         // ...No futuro, você adicionará outras tabelas aqui
         // public DbSet<Produto> Produtos { get; set; }
@@ -23,10 +25,25 @@ namespace SiorApi.Data
 {
     base.OnModelCreating(modelBuilder);
 
-    // Define a precisão do decimal para PrecoVenda na tabela Produtos
+    // Produto
     modelBuilder.Entity<Produto>()
         .Property(p => p.PrecoVenda)
         .HasColumnType("decimal(18, 2)");
+
+    // Orcamento
+    modelBuilder.Entity<Orcamento>()
+        .Property(o => o.ValorTotal)
+        .HasColumnType("decimal(18, 2)");
+
+    // OrcamentoItem
+    modelBuilder.Entity<OrcamentoItem>(entity =>
+    {
+        entity.Property(oi => oi.Quantidade)
+              .HasColumnType("decimal(18, 2)");
+
+        entity.Property(oi => oi.PrecoUnitarioVenda)
+              .HasColumnType("decimal(18, 2)");
+    });
 }
     }
 }

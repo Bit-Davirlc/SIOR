@@ -1,134 +1,207 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIOR - TCC</title>
-    <link rel="stylesheet" href="css/style.css">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>SIOR - TCC</title>
+	<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    
-    <nav class="navbar">
-        <ul class="nav-links">
-            <li><a href="#" id="navClientes">Clientes</a></li>
-            <li><a href="#" id="navCategorias">Categorias</a></li>
-            <li><a href="#" id="navProdutos">Produtos</a></li>
-            </ul>
-    </nav>
+	<nav class="navbar">
+		<ul class="nav-links">
+			<li><a href="#" id="navClientes" class="active">Clientes</a></li>
+			<li><a href="#" id="navCategorias">Categorias</a></li>
+			<li><a href="#" id="navProdutos">Produtos</a></li>
+			<li><a href="#" id="navOrcamentos">Orçamentos</a></li>
+		</ul>
+		<button id="toggleTema" class="btn-toggle-tema" title="Alternar tema">🌙</button>
+	</nav>
 
-    <main>
+	<main>
+		<!-- CLIENTES -->
+		<section id="secaoClientes">
+			<h1>Gestão de Clientes</h1>
+			<form id="formCliente">
+				<input type="hidden" id="clienteId">
+				<div class="grid-2">
+					<div>
+						<label for="nome">Nome:</label>
+						<input type="text" id="nome" placeholder="Nome completo" required>
+					</div>
+					<div>
+						<label for="documento">Documento:</label>
+						<input type="text" id="documento" placeholder="CPF/CNPJ">
+					</div>
+					<div>
+						<label for="email">Email:</label>
+						<input type="email" id="email" placeholder="email@exemplo.com">
+					</div>
+					<div>
+						<label for="telefone">Telefone:</label>
+						<input type="tel" id="telefone" placeholder="(99) 99999-9999">
+					</div>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn-principal">Salvar Cliente</button>
+				</div>
+			</form>
 
-        <section id="secaoClientes">
-            <h1>Gestão de Clientes</h1>
-            <form id="formCliente">
-                <input type="hidden" id="clienteId">
-                <div>
-                    <label for="nome">Nome:</label>
-                    <input type="text" id="nome" placeholder="Nome completo" required>
-                </div>
-                <div>
-                    <label for="documento">Documento:</label>
-                    <input type="text" id="documento" placeholder="CPF/CNPJ">
-                </div>
-                <div>
-                    <label for="email">Email:</label>
-                    <input type="email" id="email" placeholder="email@exemplo.com">
-                </div>
-                <div>
-                    <label for="telefone">Telefone:</label>
-                    <input type="tel" id="telefone" placeholder="(99) 99999-9999">
-                </div>
-                <button type="submit">Salvar Cliente</button>
-            </form>
-            <hr>
-            <h2>Clientes Cadastrados</h2>
-            <table id="tabelaClientes">
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>Documento</th>
-                        <th>Email</th>
-                        <th>Telefone</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="corpoTabelaClientes">
-                    </tbody>
-            </table>
-        </section>
+			<h2>Clientes Cadastrados</h2>
+			<table id="tabelaClientes">
+				<thead>
+					<tr>
+						<th>Nome</th><th>Documento</th><th>Email</th><th>Telefone</th><th>Ações</th>
+					</tr>
+				</thead>
+				<tbody id="corpoTabelaClientes"></tbody>
+			</table>
+		</section>
 
-        <section id="secaoCategorias" class="hidden">
-            <h1>Gestão de Categorias</h1>
-            <form id="formCategoria">
-                <input type="hidden" id="categoriaId">
-                <div>
-                    <label for="categoriaNome">Nome da Categoria:</label>
-                    <input type="text" id="categoriaNome" placeholder="Ex: Cabeamento, Ativos de Rede" required>
-                </div>
-                <button type="submit">Salvar Categoria</button>
-            </form>
-            <hr>
-            <h2>Categorias Cadastradas</h2>
-            <table id="tabelaCategorias">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nome</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="corpoTabelaCategorias">
-                    </tbody>
-            </table>
-        </section>
+		<!-- CATEGORIAS -->
+		<section id="secaoCategorias" class="hidden">
+			<h1>Gestão de Categorias</h1>
+			<form id="formCategoria">
+				<input type="hidden" id="categoriaId">
+				<div>
+					<label for="categoriaNome">Nome da Categoria:</label>
+					<input type="text" id="categoriaNome" placeholder="Ex: Cabeamento, Ativos de Rede" required>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn-principal">Salvar Categoria</button>
+				</div>
+			</form>
 
-        <section id="secaoProdutos" class="hidden">
-            <h1>Gestão de Produtos</h1>
-            <form id="formProduto">
-                <input type="hidden" id="produtoId">
-                <div>
-                    <label for="produtoNome">Nome:</label>
-                    <input type="text" id="produtoNome" required>
-                </div>
-                <div>
-                    <label for="produtoDescricao">Descrição:</label>
-                    <input type="text" id="produtoDescricao">
-                </div>
-                <div>
-                    <label for="produtoPreco">Preço (R$):</label>
-                    <input type="number" id="produtoPreco" step="0.01" required>
-                </div>
-                <div>
-                    <label for="produtoUnidade">Unidade:</label>
-                    <input type="text" id="produtoUnidade" placeholder="Ex: un, m, h" required>
-                </div>
-                <div>
-                    <label for="produtoCategoria">Categoria:</label>
-                    <select id="produtoCategoria" required>
-                        <option value="">Selecione...</option>
-                    </select>
-                </div>
-                <button type="submit">Salvar Produto</button>
-            </form>
-            <hr>
-            <h2>Produtos Cadastrados</h2>
-            <table id="tabelaProdutos">
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>Preço</th>
-                        <th>Unidade</th>
-                        <th>Categoria</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="corpoTabelaProdutos">
-                    </tbody>
-            </table>
-        </section>
+			<h2>Categorias Cadastradas</h2>
+			<table id="tabelaCategorias">
+				<thead>
+					<tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
+				</thead>
+				<tbody id="corpoTabelaCategorias"></tbody>
+			</table>
+		</section>
 
-    </main>
-    
-    <script src="js/main.js"></script>
+		<!-- PRODUTOS -->
+		<section id="secaoProdutos" class="hidden">
+			<h1>Gestão de Produtos</h1>
+			<form id="formProduto">
+				<input type="hidden" id="produtoId">
+				<div class="grid-2">
+					<div>
+						<label for="produtoNome">Nome:</label>
+						<input type="text" id="produtoNome" required>
+					</div>
+					<div>
+						<label for="produtoDescricao">Descrição:</label>
+						<input type="text" id="produtoDescricao">
+					</div>
+					<div>
+						<label for="produtoPreco">Preço (R$):</label>
+						<input type="number" id="produtoPreco" step="0.01" required>
+					</div>
+					<div>
+						<label for="produtoUnidade">Unidade:</label>
+						<input type="text" id="produtoUnidade" placeholder="Ex: un, m, h" required>
+					</div>
+					<div>
+						<label for="produtoCategoria">Categoria:</label>
+						<select id="produtoCategoria" required>
+							<option value="">Selecione...</option>
+						</select>
+					</div>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn-principal">Salvar Produto</button>
+				</div>
+			</form>
+
+			<h2>Produtos Cadastrados</h2>
+			<table id="tabelaProdutos">
+				<thead>
+					<tr><th>Nome</th><th>Preço</th><th>Unidade</th><th>Categoria</th><th>Ações</th></tr>
+				</thead>
+				<tbody id="corpoTabelaProdutos"></tbody>
+			</table>
+		</section>
+
+		<!-- ORÇAMENTOS -->
+		<section id="secaoOrcamentos" class="hidden">
+			<h1>Gestão de Orçamentos</h1>
+			<button id="btnNovoOrcamento" class="btn-principal">+ Criar Novo Orçamento</button>
+
+			<h2>Orçamentos Criados</h2>
+			<table id="tabelaOrcamentos">
+				<thead>
+					<tr><th>ID</th><th>Cliente</th><th>Data</th><th>Status</th><th>Valor Total</th><th>Ações</th></tr>
+				</thead>
+				<tbody id="corpoTabelaOrcamentos"></tbody>
+			</table>
+		</section>
+
+		<!-- NOVO ORÇAMENTO -->
+		<section id="secaoNovoOrcamento" class="hidden">
+			<h1>Novo Orçamento</h1>
+			<form id="formNovoOrcamento">
+				<fieldset>
+					<legend>Cliente</legend>
+					<select id="orcamentoCliente" required>
+						<option value="">Selecione um cliente...</option>
+					</select>
+				</fieldset>
+
+				<fieldset>
+					<legend>Adicionar Itens</legend>
+					<div class="form-item-container">
+						<div>
+							<label for="orcamentoProduto">Produto:</label>
+							<select id="orcamentoProduto">
+								<option value="">Selecione um produto...</option>
+							</select>
+						</div>
+						<div>
+							<label for="orcamentoQuantidade">Qtd:</label>
+							<input type="number" id="orcamentoQuantidade" value="1" min="1">
+						</div>
+						<button type="button" id="btnAdicionarItem" class="btn-secundario">Adicionar</button>
+					</div>
+				</fieldset>
+
+				<h3>Itens do Orçamento</h3>
+				<table id="tabelaItensTemporarios">
+					<thead>
+						<tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th><th>Ação</th></tr>
+					</thead>
+					<tbody id="corpoTabelaItensTemp"></tbody>
+				</table>
+
+				<h3 class="total-temp" id="orcamentoTotalTemp">Total: R$ 0.00</h3>
+
+				<div class="form-actions">
+					<button type="submit" class="btn-principal">Salvar Orçamento</button>
+					<button type="button" id="btnCancelarNovoOrcamento" class="btn-perigo">Cancelar</button>
+				</div>
+			</form>
+		</section>
+	</main>
+
+	<!-- MODAL DETALHES -->
+	<div id="modalDetalhes" class="modal-container hidden">
+		<div class="modal-content">
+			<span id="modalClose" class="modal-close-btn">&times;</span>
+			<h2>Detalhes do Orçamento <span id="modalOrcamentoId"></span></h2>
+			<p><strong>Cliente:</strong> <span id="modalClienteNome"></span></p>
+			<p><strong>Data:</strong> <span id="modalData"></span></p>
+			<p><strong>Status:</strong> <span id="modalStatus"></span></p>
+
+			<h3>Itens</h3>
+			<table id="modalTabelaItens">
+				<thead><tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead>
+				<tbody id="modalCorpoTabela"></tbody>
+			</table>
+
+			<h3 class="total-temp" id="modalValorTotal">Total: R$ 0.00</h3>
+		</div>
+	</div>
+
+	<script src="js/main.js"></script>
 </body>
 </html>
