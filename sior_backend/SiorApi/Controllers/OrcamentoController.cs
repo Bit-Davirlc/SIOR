@@ -51,8 +51,75 @@ namespace SiorApi.Controllers
             return orcamento;
         }
 
-        // POST: api/orcamentos
-        // Este é o método mais importante!
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutOrcamento(int id, OrcamentoCreateDto orcamentoDto)
+        {
+            // 1. Encontra o orçamento principal
+            var orcamento = await _context.Orcamentos.FindAsync(id);
+            if (orcamento == null)
+            {
+                return NotFound("Orçamento não encontrado.");
+            }
+
+            // 2. Atualiza os dados simples (Cliente e Status)
+            orcamento.ClienteID = orcamentoDto.ClienteID;
+            orcamento.Status = orcamentoDto.Status;
+
+            // 3. Remove TODOS os itens antigos deste orçamento
+            // (Esta é a forma mais segura de atualizar itens complexos)
+            var itensAntigos = _context.OrcamentoItens
+                .Where(i => i.OrcamentoID == id);
+            _context.OrcamentoItens.RemoveRange(itensAntigos);
+
+            // 4. Adiciona os "novos" itens (do DTO)
+            decimal novoValorTotal = 0;
+            
+            // É importante criar uma nova lista, pois a antiga foi removida
+            orcamento.Itens = new List<OrcamentoItem>(); 
+
+            foreach (var itemDto in orcamentoDto.Itens)
+            {
+                var produto = await _context.Produtos.FindAsync(itemDto.ProdutoID);
+                if (produto == null)
+                {
+                    return BadRequest($"Produto com ID {itemDto.ProdutoID} não encontrado.");
+                }
+
+                var novoItem = new OrcamentoItem
+                {
+                    OrcamentoID = id, // Linka com o orçamento existente
+                    ProdutoID = itemDto.ProdutoID,
+                    Quantidade = itemDto.Quantidade,
+                    PrecoUnitarioVenda = produto.PrecoVenda // Pega o preço atual
+                };
+                
+                orcamento.Itens.Add(novoItem); // Adiciona na nova lista
+                novoValorTotal += novoItem.Quantidade * novoItem.PrecoUnitarioVenda;
+            }
+
+            // 5. Atualiza o valor total e a data
+            orcamento.ValorTotal = novoValorTotal;
+            orcamento.DataCriacao = DateTime.UtcNow; // Atualiza a data para a da edição
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Orcamentos.Any(e => e.OrcamentoID == id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent(); // Sucesso
+        }
+
         [HttpPost]
         public async Task<ActionResult<Orcamento>> PostOrcamento(OrcamentoCreateDto orcamentoDto)
         {
@@ -139,8 +206,35 @@ namespace SiorApi.Controllers
             return NoContent();
         }
 
-        // Nota: Um "PUT" (Editar) num orçamento é muito complexo (adicionar/remover/mudar itens).
-        // Para um TCC, focar no POST (Criar) e GET (Ver) é o mais importante.
-        // Um PUT simples poderia ser só para mudar o Status (Ex: "Em Aberto" -> "Finalizado")
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdateOrcamentoStatus(int id, [FromBody] OrcamentoStatusDto statusDto)
+        {
+            if (statusDto == null || string.IsNullOrEmpty(statusDto.Status))
+            {
+                return BadRequest("O novo status não pode ser nulo ou vazio.");
+            }
+
+            var orcamento = await _context.Orcamentos.FindAsync(id);
+
+            if (orcamento == null)
+            {
+                return NotFound("Orçamento não encontrado.");
+            }
+
+            // Ação simples: Apenas atualiza o status
+            orcamento.Status = statusDto.Status;
+            
+            try
+            {
+                // Salva a mudança
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, "Ocorreu um erro ao atualizar o status.");
+            }
+
+            return NoContent(); // Sucesso
+        }
     }
 }

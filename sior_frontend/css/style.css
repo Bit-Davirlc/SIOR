@@ -308,82 +308,132 @@ tbody tr:hover {
 /* --- Estilos do Módulo de Desenho --- */
 
 .toolbar-desenho {
-    background-color: #f0f0f0;
-    padding: 10px;
-    border-radius: 4px;
-    margin-bottom: 15px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 18px;
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
+    flex-wrap: wrap;
+    border: 1px solid var(--card-border, #dcdcdc);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* O input[type=file] original fica escondido */
+/* Esconde o input file nativo */
 .toolbar-desenho input[type="file"].hidden {
     display: none;
 }
 
-/* O label vira um botão */
+/* Label estilizado como botão secundário */
 .toolbar-desenho .btn-secundario {
     display: inline-block;
 }
 
-/* Onde o Konva vai desenhar */
+/* Conteúdo onde o Konva vai desenhar */
 #container-canvas {
     width: 100%;
-    height: 600px; /* Altura fixa para o canvas */
-    background-color: #fdfdfd;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    height: 600px;
+    background-color: var(--canvas-bg, #ffffff);
+    border: 1px solid var(--card-border, #ccc);
+    border-radius: 8px;
     box-sizing: border-box;
+    margin-top: 10px;
 }
 
-.toolbar-desenho {
-    /* ... (estilos existentes) ... */
-    flex-wrap: wrap; /* Permite quebrar a linha */
-}
-
-/* Estilos da Toolbox */
+/* -----------------------------------------------------------
+   TOOLBOX LATERAL
+----------------------------------------------------------- */
 .toolbox {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-left: 20px;
+    gap: 12px;
     padding-left: 20px;
-    border-left: 2px solid #ddd;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border, #ccc);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
 }
 
 .toolbox-title {
-    font-size: 0.9em;
-    color: #555;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text, #585858);
+    letter-spacing: .3px;
+    text-transform: uppercase;
 }
 
 .tool-item {
-    width: 40px; /* Tamanho do ícone na barra */
-    height: 40px;
-    cursor: grab; /* Indica que é arrastável */
-    padding: 5px;
-    border-radius: 4px;
-    background-color: #fff;
-    border: 1px solid #ccc;
+    width: 42px;
+    height: 42px;
+    cursor: grab;
+    padding: 6px;
+    border-radius: 6px;
+    background-color: var(--card-bg, #fff);
+    border: 1px solid var(--card-border, #ccc);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color .15s ease, transform .15s ease;
 }
 
 .tool-item:hover {
-    background-color: #e0e0e0;
+    background-color: var(--hover-bg, #e5e5e5);
+    transform: scale(1.04);
 }
 
+/* Botão imprimir flutuante */
 .btn-imprimir {
-    float: right; /* Flutua para a direita */
-    margin-right: 30px; /* Dá espaço do botão "X" */
+    float: right;
+    margin-right: 30px;
 }
 
+.btn-transferencia {
+    background-color: var(--primary-bg, #007bff);
+    color: var(--primary-text, #fff);
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.btn-transferencia:hover {
+    background-color: var(--primary-hover, #0069d9);
+    transform: scale(1.03);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+}
+
+.btn-transferencia:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.btn-transferencia:disabled {
+    background-color: var(--disabled-bg, #cccccc);
+    color: var(--disabled-text, #666666);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* -----------------------------------------------------------
+   IMPRESSÃO / EXPORTAÇÃO PDF
+----------------------------------------------------------- */
 @media print {
 
-    /* 1. Esconde os botões (isso está correto) */
-    .modal-close-btn, 
+    /* Esconde botões */
+    .modal-close-btn,
     #btnBaixarPDF {
         display: none !important;
     }
 
+    /* Deixa todo o texto branco para fundos escuros */
     #modalContentPDF,
     #modalContentPDF h2,
     #modalContentPDF h3,
@@ -395,9 +445,16 @@ tbody tr:hover {
         color: white !important;
     }
 
+    /* Remove fundo das tabelas */
     #modalTabelaItens th,
     #modalTabelaItens td,
     #modalValorTotal {
         background-color: transparent !important;
     }
+}
+
+/* Evita cortes no PDF */
+.pdf-export-mode {
+    max-height: none !important;
+    overflow-y: visible !important;
 }

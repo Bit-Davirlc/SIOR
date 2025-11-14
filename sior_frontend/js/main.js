@@ -42,24 +42,24 @@ const todasSecoes = document.querySelectorAll('main > section');
 // -------------------------------------------------------------------
 
 function mostrarSecao(idSecao) {
-    // 1. Esconde todas as seções
-    todasSecoes.forEach(secao => secao.classList.add('hidden'));
+	// 1. Esconde todas as seções
+	todasSecoes.forEach(secao => secao.classList.add('hidden'));
 
-    // 2. Mostra a seção clicada
-    if (secoes[idSecao]) { // Segurança para evitar erros
-        secoes[idSecao].classList.remove('hidden');
-    }
+	// 2. Mostra a seção clicada
+	if (secoes[idSecao]) { // Segurança para evitar erros
+		secoes[idSecao].classList.remove('hidden');
+	}
 
-    // 3. ATUALIZA A NAVEGAÇÃO (A MÁGICA ESTÁ AQUI)
-    // Remove 'active' de todos os links
-    Object.values(navLinks).forEach(link => {
-        link.classList.remove('active');
-    });
+	// 3. ATUALIZA A NAVEGAÇÃO (A MÁGICA ESTÁ AQUI)
+	// Remove 'active' de todos os links
+	Object.values(navLinks).forEach(link => {
+		link.classList.remove('active');
+	});
 
-    // Adiciona 'active' apenas no link correspondente
-    if (navLinks[idSecao]) { // Segurança para links como 'novoOrcamento'
-        navLinks[idSecao].classList.add('active');
-    }
+	// Adiciona 'active' apenas no link correspondente
+	if (navLinks[idSecao]) { // Segurança para links como 'novoOrcamento'
+		navLinks[idSecao].classList.add('active');
+	}
 }
 
 navLinks.clientes.addEventListener('click', () => mostrarSecao('clientes'));
@@ -149,13 +149,13 @@ async function excluirCliente(id) {
 }
 
 async function abrirModalDetalhes(id) {
-    idOrcamentoAberto = id; // <-- PASSO 2: Guarde o ID do orçamento
-    
-    try {
-        modalContainer.classList.add('is-active'); // (ou .remove('hidden'))
-    } catch (error) {
-        console.error("Falha ao abrir detalhes:", error);
-    }
+	idOrcamentoAberto = id; // <-- PASSO 2: Guarde o ID do orçamento
+
+	try {
+		modalContainer.classList.add('is-active'); // (ou .remove('hidden'))
+	} catch (error) {
+		console.error("Falha ao abrir detalhes:", error);
+	}
 }
 
 formCliente.addEventListener('submit', salvarCliente);
@@ -433,13 +433,51 @@ async function carregarOrcamentos() {
 				<td>${orc.status}</td>
 				<td>R$ ${orc.valorTotal.toFixed(2)}</td>
 				<td>
-					<button class="btn-editar btn-ver-detalhes" data-id="${orc.orcamentoID}">Ver</button>
+					<button class="btn-secundario btn-ver-detalhes" data-id="${orc.orcamentoID}">Ver</button>
+					<button class="btn-editar btn-editar-orcamento" data-id="${orc.orcamentoID}">Editar</button>
 					<button class="btn-excluir" data-id="${orc.orcamentoID}">Excluir</button>
 				</td>
 			`;
 			corpoTabelaOrcamentos.appendChild(tr);
 		});
 	} catch (error) { console.error('Falha ao carregar orçamentos:', error); }
+}
+
+async function abrirFormularioEdicaoOrcamento(id) {
+    try {
+        // 1. Busca o orçamento completo (com itens)
+        const response = await fetch(`${apiUrlOrcamentos}/${id}`);
+        if (!response.ok) throw new Error('Falha ao buscar dados para edição.');
+        const orcamento = await response.json();
+
+        // 2. Limpa o formulário antes de preencher
+        limparFormularioOrcamento(); 
+
+        // 3. Preenche os campos principais
+        document.getElementById('orcamentoIdEdit').value = orcamento.orcamentoID;
+        selectCliente.value = orcamento.cliente.clienteID;
+        
+        // 4. Atualiza a UI para o modo "Editar" (Seu código)
+        document.getElementById('tituloFormOrcamento').textContent = `Editar Orçamento #${id}`;
+        document.getElementById('btnSalvarOrcamento').textContent = 'Atualizar Orçamento';
+
+        // 5. Preenche a lista de itens temporários com dados do orçamento
+        itensOrcamentoTemporario = orcamento.itens.map(item => ({
+            produtoID: item.produto.produtoID,
+            nome: item.produto.nome,
+            quantidade: item.quantidade,
+            precoUnitario: item.precoUnitarioVenda, // Usa o preço que foi salvo
+            subtotal: item.quantidade * item.precoUnitarioVenda
+        }));
+
+        // 6. Renderiza a tabela de itens e muda de seção
+        renderizarTabelaTemp();
+        mostrarSecao('novoOrcamento');
+        
+    } catch (error) {
+        console.error("Falha ao abrir formulário de edição:", error);
+        alert("Não foi possível carregar o orçamento para edição.");
+    }
 }
 
 // --- Funções do Formulário de Novo Orçamento ---
@@ -513,16 +551,23 @@ function renderizarTabelaTemp() {
 
 // Limpa o formulário e a lista temporária
 function limparFormularioOrcamento() {
-	formNovoOrcamento.reset();
-	itensOrcamentoTemporario = [];
-	renderizarTabelaTemp();
+    formNovoOrcamento.reset();
+    document.getElementById('orcamentoIdEdit').value = '';
+    itensOrcamentoTemporario = [];
+    renderizarTabelaTemp();
+
+    // Reseta a UI para o modo "Novo"
+    document.getElementById('tituloFormOrcamento').textContent = 'Novo Orçamento';
+    document.getElementById('btnSalvarOrcamento').textContent = 'Salvar Orçamento';
 }
 
 // Salva o orçamento no banco (envia o DTO)
 async function salvarOrcamento(event) {
 	event.preventDefault();
 
+	const idOrcamento = document.getElementById('orcamentoIdEdit').value; 
 	const clienteID = parseInt(selectCliente.value);
+
 	if (!clienteID) {
 		alert("Selecione um cliente.");
 		return;
@@ -542,25 +587,32 @@ async function salvarOrcamento(event) {
 		}))
 	};
 
+	const metodo = idOrcamento ? 'PUT' : 'POST';
+    const url = idOrcamento ? `${apiUrlOrcamentos}/${idOrcamento}` : apiUrlOrcamentos;
+
 	try {
-		const response = await fetch(apiUrlOrcamentos, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(orcamentoDto)
-		});
+        // 3. ATUALIZE: Use as novas variáveis 'url' e 'metodo'
+        const response = await fetch(url, { // <-- MUDANÇA
+            method: metodo,                 // <-- MUDANÇA
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orcamentoDto)
+        });
 
-		if (!response.ok) {
-			throw new Error('Erro ao salvar o orçamento.');
-		}
+        if (!response.ok) {
+            // 4. ATUALIZE: Mensagem de erro dinâmica
+            throw new Error(`Erro ao ${idOrcamento ? 'atualizar' : 'salvar'} o orçamento.`); 
+        }
 
-		alert("Orçamento salvo com sucesso!");
-		limparFormularioOrcamento();
-		mostrarSecao('orcamentos'); // Volta para a lista
-		carregarOrcamentos(); // Recarrega a lista principal
+        // 5. ATUALIZE: Mensagem de sucesso dinâmica
+        alert(`Orçamento ${idOrcamento ? 'atualizado' : 'salvo'} com sucesso!`); 
+        
+        limparFormularioOrcamento();
+        mostrarSecao('orcamentos'); // Volta para a lista
+        carregarOrcamentos(); // Recarrega a lista principal
 
-	} catch (error) {
-		console.error('Falha ao salvar orçamento:', error);
-	}
+    } catch (error) {
+        console.error('Falha ao salvar orçamento:', error);
+    }
 }
 
 // Exclui um orçamento da lista principal
@@ -571,6 +623,27 @@ async function excluirOrcamento(id) {
 		if (!response.ok) throw new Error('Erro ao excluir.');
 		carregarOrcamentos(); // Recarrega a lista
 	} catch (error) { console.error('Falha ao excluir orçamento:', error); }
+}
+
+async function aprovarOrcamento(id) {
+    // 1. Cria o DTO de status
+    const statusDto = { status: "Aprovado" };
+
+    // 2. Chama a NOVA rota
+    const url = `${apiUrlOrcamentos}/${id}/status`;
+
+    try {
+        await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(statusDto)
+        });
+        
+        carregarOrcamentos(); // Recarrega a lista para mostrar o novo status
+
+    } catch (error) {
+        console.error("Falha ao aprovar orçamento:", error);
+    }
 }
 
 // --- Funções do Modal de Detalhes ---
@@ -625,169 +698,169 @@ let objectLayer; // Camada para ícones (PCs, Switches)
 const inputPlantaBaixa = document.getElementById('inputPlantaBaixa');
 
 function inicializarCanvas() {
-    // Só inicializa se o 'stage' não foi criado ainda
-    if (stage) return; 
+	// Só inicializa se o 'stage' não foi criado ainda
+	if (stage) return; 
 
-    const container = document.getElementById('container-canvas');
-    if (!container) return; // Segurança
+	const container = document.getElementById('container-canvas');
+	if (!container) return; // Segurança
 
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+	const width = container.clientWidth;
+	const height = container.clientHeight;
 
-    // 1. Criar o Palco (Stage)
-    stage = new Konva.Stage({
-        container: 'container-canvas', 
-        width: width,
-        height: height,
-    });
+	// 1. Criar o Palco (Stage)
+	stage = new Konva.Stage({
+		container: 'container-canvas', 
+		width: width,
+		height: height,
+	});
 
-    // 2. Criar as Camadas (Layers)
-    backgroundLayer = new Konva.Layer();
-    objectLayer = new Konva.Layer();
-    stage.add(backgroundLayer, objectLayer);
+	// 2. Criar as Camadas (Layers)
+	backgroundLayer = new Konva.Layer();
+	objectLayer = new Konva.Layer();
+	stage.add(backgroundLayer, objectLayer);
 
-    console.log("Canvas Konva inicializado.");
+	console.log("Canvas Konva inicializado.");
 
-    // --- LÓGICA DE DRAG AND DROP (D&D) ---
+	// --- LÓGICA DE DRAG AND DROP (D&D) ---
 
-    // 3. Ouvir o DRAGOVER no container
-    // (Necessário para que o navegador permita o 'drop')
-    container.addEventListener('dragover', (e) => {
-        e.preventDefault(); // Permite soltar
-    });
+	// 3. Ouvir o DRAGOVER no container
+	// (Necessário para que o navegador permita o 'drop')
+	container.addEventListener('dragover', (e) => {
+		e.preventDefault(); // Permite soltar
+	});
 
-    // 4. Ouvir o DROP no container
-    container.addEventListener('drop', (e) => {
-        e.preventDefault();
-        
-        // Garante que o item arrastado é da nossa toolbox
-        if (dragItemId === null) return;
+	// 4. Ouvir o DROP no container
+	container.addEventListener('drop', (e) => {
+		e.preventDefault();
 
-        // Pega a posição do mouse RELATIVA ao stage
-        stage.setPointersPositions(e);
-        const pos = stage.getPointerPosition();
-        
-        // Adiciona o item no canvas
-        adicionarItemCanvas(pos.x, pos.y, dragItemId);
+		// Garante que o item arrastado é da nossa toolbox
+		if (dragItemId === null) return;
 
-        // Limpa o ID do item
-        dragItemId = null;
-    });
+		// Pega a posição do mouse RELATIVA ao stage
+		stage.setPointersPositions(e);
+		const pos = stage.getPointerPosition();
+
+		// Adiciona o item no canvas
+		adicionarItemCanvas(pos.x, pos.y, dragItemId);
+
+		// Limpa o ID do item
+		dragItemId = null;
+	});
 }
 
 function exportarCanvasPNG() {
-    if (!stage) {
-        alert("O canvas ainda não foi inicializado.");
-        return;
-    }
+	if (!stage) {
+		alert("O canvas ainda não foi inicializado.");
+		return;
+	}
 
-    // 1. Usa o método .toDataURL() do Konva para gerar um PNG
-    // Isso "achata" todas as camadas (fundo + objetos)
-    const dataURL = stage.toDataURL({ 
-        pixelRatio: 1 // Pode aumentar para 2 para maior resolução
-    });
+	// 1. Usa o método .toDataURL() do Konva para gerar um PNG
+	// Isso "achata" todas as camadas (fundo + objetos)
+	const dataURL = stage.toDataURL({ 
+		pixelRatio: 1 // Pode aumentar para 2 para maior resolução
+	});
 
-    // 2. Cria um link (<a>) temporário na memória
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = 'desenho_rede_sior.png'; // O nome do arquivo
+	// 2. Cria um link (<a>) temporário na memória
+	const link = document.createElement('a');
+	link.href = dataURL;
+	link.download = 'desenho_rede_sior.png'; // O nome do arquivo
 
-    // 3. Simula o clique no link para iniciar o download
-    document.body.appendChild(link); // (Precisa estar no DOM para o Firefox)
-    link.click();
-    document.body.removeChild(link);
+	// 3. Simula o clique no link para iniciar o download
+	document.body.appendChild(link); // (Precisa estar no DOM para o Firefox)
+	link.click();
+	document.body.removeChild(link);
 }
 
 // Função para carregar a imagem da planta baixa
 function carregarPlantaBaixa(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+	const file = event.target.files[0];
+	if (!file) return;
 
-    // Cria uma URL local temporária para a imagem
-    const imgUrl = URL.createObjectURL(file);
+	// Cria uma URL local temporária para a imagem
+	const imgUrl = URL.createObjectURL(file);
 
-    // Cria um objeto de Imagem do JavaScript
-    const imageObj = new Image();
-    imageObj.src = imgUrl;
+	// Cria um objeto de Imagem do JavaScript
+	const imageObj = new Image();
+	imageObj.src = imgUrl;
 
-    // Espera a imagem carregar
-    imageObj.onload = () => {
-        // Limpa qualquer planta antiga
-        backgroundLayer.destroyChildren();
+	// Espera a imagem carregar
+	imageObj.onload = () => {
+		// Limpa qualquer planta antiga
+		backgroundLayer.destroyChildren();
 
-        // Cria uma Imagem Konva
-        const konvaImage = new Konva.Image({
-            x: 0,
-            y: 0,
-            image: imageObj,
-            width: stage.width(), // Faz a imagem caber no canvas
-            height: stage.height(),
-            name: 'planta-baixa' // Dá um nome para referência
-        });
+		// Cria uma Imagem Konva
+		const konvaImage = new Konva.Image({
+			x: 0,
+			y: 0,
+			image: imageObj,
+			width: stage.width(), // Faz a imagem caber no canvas
+			height: stage.height(),
+			name: 'planta-baixa' // Dá um nome para referência
+		});
 
-        // Adiciona a imagem à camada de fundo
-        backgroundLayer.add(konvaImage);
-        
-        // Manda a camada de fundo para trás de todas
-        backgroundLayer.moveToBottom();
-        
-        // Redesenha a camada
-        backgroundLayer.draw();
+		// Adiciona a imagem à camada de fundo
+		backgroundLayer.add(konvaImage);
 
-        // Limpa o valor do input para permitir carregar a mesma imagem de novo
-        event.target.value = null; 
-    };
+		// Manda a camada de fundo para trás de todas
+		backgroundLayer.moveToBottom();
 
-    imageObj.onerror = () => {
-        alert("Não foi possível carregar a imagem.");
-    }
+		// Redesenha a camada
+		backgroundLayer.draw();
+
+		// Limpa o valor do input para permitir carregar a mesma imagem de novo
+		event.target.value = null; 
+	};
+
+	imageObj.onerror = () => {
+		alert("Não foi possível carregar a imagem.");
+	}
 }
 
 // -------------------------------------------------------------------
 // (Nova Seção) 9.5: FUNÇÕES GLOBAIS DE DESENHO
 // -------------------------------------------------------------------
 function carregarAssetsKonva() {
-    // PC
-    konvaImages['tool-pc'] = new Image();
-    konvaImages['tool-pc'].crossOrigin = "Anonymous"; 
-    
-    // ADICIONE ?v=1 AQUI
-    konvaImages['tool-pc'].src = 'https://img.icons8.com/ios-filled/50/workstation.png?v=1'; 
-    konvaImages['tool-pc'].onerror = () => console.error("Falha ao carregar ícone PC");
+	// PC
+	konvaImages['tool-pc'] = new Image();
+	konvaImages['tool-pc'].crossOrigin = "Anonymous"; 
 
-    // Switch
-    konvaImages['tool-switch'] = new Image();
-    konvaImages['tool-switch'].crossOrigin = "Anonymous"; 
-    
-    // ADICIONE ?v=1 AQUI
-    konvaImages['tool-switch'].src = 'https://img.icons8.com/ios-filled/50/router.png?v=1'; 
-    konvaImages['tool-switch'].onerror = () => console.error("Falha ao carregar ícone Switch");
+	// ADICIONE ?v=1 AQUI
+	konvaImages['tool-pc'].src = 'https://img.icons8.com/ios-filled/50/workstation.png?v=1'; 
+	konvaImages['tool-pc'].onerror = () => console.error("Falha ao carregar ícone PC");
+
+	// Switch
+	konvaImages['tool-switch'] = new Image();
+	konvaImages['tool-switch'].crossOrigin = "Anonymous"; 
+
+	// ADICIONE ?v=1 AQUI
+	konvaImages['tool-switch'].src = 'https://img.icons8.com/ios-filled/50/router.png?v=1'; 
+	konvaImages['tool-switch'].onerror = () => console.error("Falha ao carregar ícone Switch");
 }
 
 // Função que cria o item no canvas
 function adicionarItemCanvas(x, y, id) {
-    if (!konvaImages[id]) {
-        console.error("Asset não carregado:", id);
-        return;
-    }
+	if (!konvaImages[id]) {
+		console.error("Asset não carregado:", id);
+		return;
+	}
 
-    const konvaImage = new Konva.Image({
-        x: x,
-        y: y,
-        image: konvaImages[id],
-        width: 40,
-        height: 40,
-        draggable: true, // <-- Permite mover o ícone DEPOIS de soltar
-        name: 'objeto-rede' // Um nome para identificação
-    });
+	const konvaImage = new Konva.Image({
+		x: x,
+		y: y,
+		image: konvaImages[id],
+		width: 40,
+		height: 40,
+		draggable: true, // <-- Permite mover o ícone DEPOIS de soltar
+		name: 'objeto-rede' // Um nome para identificação
+	});
 
-    // Centraliza o ícone no cursor (opcional, mas bom)
-    konvaImage.offsetX(konvaImage.width() / 2);
-    konvaImage.offsetY(konvaImage.height() / 2);
+	// Centraliza o ícone no cursor (opcional, mas bom)
+	konvaImage.offsetX(konvaImage.width() / 2);
+	konvaImage.offsetY(konvaImage.height() / 2);
 
-    // Adiciona à camada de objetos (a camada da frente)
-    objectLayer.add(konvaImage);
-    objectLayer.draw();
+	// Adiciona à camada de objetos (a camada da frente)
+	objectLayer.add(konvaImage);
+	objectLayer.draw();
 }
 
 // -------------------------------------------------------------------
@@ -834,6 +907,10 @@ corpoTabelaOrcamentos.addEventListener('click', (event) => {
 		const id = parseInt(event.target.dataset.id);
 		abrirModalDetalhes(id);
 	}
+	if (event.target.classList.contains('btn-editar-orcamento')) {
+        const id = parseInt(event.target.dataset.id);
+        abrirFormularioEdicaoOrcamento(id);
+    }
 });
 
 // Gatilho 7: Fechar o Modal
@@ -850,9 +927,9 @@ inputPlantaBaixa.addEventListener('change', carregarPlantaBaixa);
 
 // Gatilho especial: Inicializa o canvas QUANDO a aba de Desenho for clicada
 navLinks.desenho.addEventListener('click', () => {
-    mostrarSecao('desenho');
-    // Usamos setTimeout para garantir que o 'div' está visível antes de o Konva medir
-    setTimeout(inicializarCanvas, 10); 
+	mostrarSecao('desenho');
+	// Usamos setTimeout para garantir que o 'div' está visível antes de o Konva medir
+	setTimeout(inicializarCanvas, 10); 
 });
 
 // -------------------------------------------------------------------
@@ -873,34 +950,40 @@ document.addEventListener('DOMContentLoaded', () => {
 	carregarCategorias();
 
 	const btnBaixar = document.getElementById('btnBaixarPDF');
-    btnBaixar.addEventListener('click', () => {
-        
-        // 1. Pega o elemento HTML que queremos converter
-        const elemento = document.getElementById('modalContentPDF');
+		btnBaixar.addEventListener('click', () => {
 
-        // 2. Define as opções do PDF
-        const opt = {
-          margin:       0.5, // Margem em polegadas
-          filename:     `orcamento_${idOrcamentoAberto}.pdf`, // Nome do arquivo
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2 }, // Aumenta a qualidade da "foto"
-		  backgroundColor: '#ffffffff',
-          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-        };
+			// 1. Pega o elemento HTML que queremos converter
+			const elemento = document.getElementById('modalContentPDF');
 
-        // 3. Roda a mágica!
-        html2pdf().from(elemento).set(opt).save();
-    });
+			// 2. Define as opções do PDF
+			const opt = {
+				margin: 0.5, // Margem em polegadas
+				filename: `orcamento_${idOrcamentoAberto}.pdf`, // Nome do arquivo
+				image: { type: 'jpeg', quality: 0.98 },
+				html2canvas: { scale: 2 }, // Aumenta a qualidade da "foto"
+		backgroundColor: '#ffffffff',
+			jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+			};
+
+		elemento.classList.add('pdf-export-mode');
+
+		html2pdf().from(elemento).set(opt).save().then(() => {
+
+			// PASSO C: DEPOIS que o PDF for salvo, remove a classe.
+			// Isso faz o modal voltar ao normal (com scroll).
+			elemento.classList.remove('pdf-export-mode');
+			});
+		});
 
 	carregarAssetsKonva(); // <-- ADICIONA AQUI
 
-    // --- Adiciona Listeners da Toolbox de Desenho ---
-    document.getElementById('tool-pc').addEventListener('dragstart', (e) => {
-        dragItemId = e.target.id;
-    });
-    document.getElementById('tool-switch').addEventListener('dragstart', (e) => {
-        dragItemId = e.target.id;
-    });
+		// --- Adiciona Listeners da Toolbox de Desenho ---
+		document.getElementById('tool-pc').addEventListener('dragstart', (e) => {
+			dragItemId = e.target.id;
+		});
+		document.getElementById('tool-switch').addEventListener('dragstart', (e) => {
+			dragItemId = e.target.id;
+		});
 	document.getElementById('btnExportarPNG').addEventListener('click', exportarCanvasPNG);
 });
 

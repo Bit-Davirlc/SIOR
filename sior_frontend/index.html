@@ -11,17 +11,20 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 </head>
+
 <body>
-	<nav class="navbar">
-		<ul class="nav-links">
-			<li><a href="#" id="navClientes">Clientes</a></li>
-			<li><a href="#" id="navCategorias">Categorias</a></li>
-			<li><a href="#" id="navProdutos">Produtos</a></li>
-			<li><a href="#" id="navOrcamentos">Orçamentos</a></li>
-			<li><a href="#" id="navDesenho">Desenho</a></li>
-		</ul>
-		<button id="toggleTema" class="btn-toggle-tema" title="Alternar tema">🌙</button>
-	</nav>
+	<header>
+		<nav class="navbar">
+			<ul class="nav-links">
+				<li><a href="#" id="navClientes">Clientes</a></li>
+				<li><a href="#" id="navCategorias">Categorias</a></li>
+				<li><a href="#" id="navProdutos">Produtos</a></li>
+				<li><a href="#" id="navOrcamentos">Orçamentos</a></li>
+				<li><a href="#" id="navDesenho">Desenho</a></li>
+			</ul>
+			<button id="toggleTema" class="btn-toggle-tema" title="Alternar tema">🌙</button>
+		</nav>
+	</header>
 
 	<main>
 		<!-- CLIENTES -->
@@ -132,7 +135,7 @@
 		<!-- ORÇAMENTOS -->
 		<section id="secaoOrcamentos" class="hidden">
 			<h1>Gestão de Orçamentos</h1>
-			<button id="btnNovoOrcamento" class="btn-principal">+ Criar Novo Orçamento</button>
+			<button id="btnNovoOrcamento" class="btn-principal" style="margin-bottom: 10px;">+ Criar Novo Orçamento</button>
 
 			<h2>Orçamentos Criados</h2>
 			<table id="tabelaOrcamentos">
@@ -145,13 +148,27 @@
 
 		<!-- NOVO ORÇAMENTO -->
 		<section id="secaoNovoOrcamento" class="hidden">
-			<h1>Novo Orçamento</h1>
+			<h1 id="tituloFormOrcamento">Novo Orçamento</h1>
 			<form id="formNovoOrcamento">
+				<input type="hidden" id="orcamentoIdEdit">
 				<fieldset>
-					<legend>Cliente</legend>
-					<select id="orcamentoCliente" required>
-						<option value="">Selecione um cliente...</option>
-					</select>
+					<legend>Detalhes</legend>
+					<div>
+						<label for="orcamentoCliente">Cliente:</label>
+						<select id="orcamentoCliente" required>
+							<option value="">Selecione um cliente...</option>
+						</select>
+					</div>
+					
+					<div id="campoStatus" class="hidden" style="margin-top: 10px;">
+						<label for="orcamentoStatus">Status:</label>
+						<select id="orcamentoStatus">
+							<option value="Em Aberto">Em Aberto</option>
+							<option value="Aprovado">Aprovado</option>
+							<option value="Rejeitado">Rejeitado</option>
+							<option value="Finalizado">Finalizado</option>
+						</select>
+					</div>
 				</fieldset>
 
 				<fieldset>
@@ -172,17 +189,17 @@
 				</fieldset>
 
 				<h3>Itens do Orçamento</h3>
-				<table id="tabelaItensTemporarios">
-					<thead>
-						<tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th><th>Ação</th></tr>
-					</thead>
-					<tbody id="corpoTabelaItensTemp"></tbody>
-				</table>
+					<table id="tabelaItensTemporarios">
+						<thead>
+							<tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th><th>Ação</th></tr>
+						</thead>
+						<tbody id="corpoTabelaItensTemp"></tbody>
+					</table>
 
 				<h3 class="total-temp" id="orcamentoTotalTemp">Total: R$ 0.00</h3>
 
 				<div class="form-actions">
-					<button type="submit" class="btn-principal">Salvar Orçamento</button>
+					<button type="submit" class="btn-principal" id="btnSalvarOrcamento">Salvar Orçamento</button>
 					<button type="button" id="btnCancelarNovoOrcamento" class="btn-perigo">Cancelar</button>
 				</div>
 			</form>
@@ -192,15 +209,15 @@
 			<h1>Módulo de Desenho Técnico</h1>
 
 			<div class="toolbar-desenho">
-				<label for="inputPlantaBaixa" class="btn-secundario">
+				<label for="inputPlantaBaixa" class="btn-transferencia">
 					Importar Planta Baixa
 					</label>
 					<input type="file" id="inputPlantaBaixa" accept="image/*" class="hidden">
 
-					<div class="toolbox">
+					<div class="toolbox" style="background-color: rgba(240, 248, 255, 0); border: none;">
 						</div>
 
-					<button id="btnExportarPNG" class="btn-secundario" style="margin-left: auto;">
+					<button id="btnExportarPNG" class="btn-transferencia" style="margin-left: auto;">
 						Exportar como PNG
 					</button>
 					</div>
