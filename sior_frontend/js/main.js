@@ -8,32 +8,34 @@ const apiUrlOrcamentos = 'http://localhost:5095/api/orcamentos';
 
 // -------------------------------------------------------------------
 // 2. ARMAZENAMENTO DE ESTADO GLOBAL
-// (Guardamos os dados de Clientes e Produtos para não recarregar)
 // -------------------------------------------------------------------
 let todosClientes = [];
 let todosProdutos = [];
-let itensOrcamentoTemporario = []; // <-- Guarda os itens do NOVO orçamento
+let itensOrcamentoTemporario = [];
 let idOrcamentoAberto = 0;
-let konvaImages = {}; // Armazena os 'Image' objects do Konva
-let dragItemId = null; // Guarda o ID do item sendo arrastado
+let orcamentoAbertoAtual = null;
+let konvaImages = {};
+let dragItemId = null;
+let mascaraTelefoneObj = null;
 
 // -------------------------------------------------------------------
 // 3. SELETORES GERAIS (NAVEGAÇÃO E SEÇÕES)
 // -------------------------------------------------------------------
+
 const navLinks = {
 	clientes: document.getElementById('navClientes'),
 	categorias: document.getElementById('navCategorias'),
 	produtos: document.getElementById('navProdutos'),
 	orcamentos: document.getElementById('navOrcamentos'),
-	desenho: document.getElementById('navDesenho'), // <-- NOVO
+	desenho: document.getElementById('navDesenho'),
 };
 const secoes = {
 	clientes: document.getElementById('secaoClientes'),
 	categorias: document.getElementById('secaoCategorias'),
 	produtos: document.getElementById('secaoProdutos'),
-	orcamentos: document.getElementById('secaoOrcamentos'), // <-- NOVO
+	orcamentos: document.getElementById('secaoOrcamentos'),
 	novoOrcamento: document.getElementById('secaoNovoOrcamento'),
-	desenho: document.getElementById('secaoDesenho'), // <-- NOVO
+	desenho: document.getElementById('secaoDesenho'),
 };
 const todasSecoes = document.querySelectorAll('main > section');
 
@@ -42,24 +44,18 @@ const todasSecoes = document.querySelectorAll('main > section');
 // -------------------------------------------------------------------
 
 function mostrarSecao(idSecao) {
-	// 1. Esconde todas as seções
 	todasSecoes.forEach(secao => secao.classList.add('hidden'));
 
-	// 2. Mostra a seção clicada
-	if (secoes[idSecao]) { // Segurança para evitar erros
+	if (secoes[idSecao]) {
 		secoes[idSecao].classList.remove('hidden');
 	}
 
-	// 3. ATUALIZA A NAVEGAÇÃO (A MÁGICA ESTÁ AQUI)
-	// Remove 'active' de todos os links
 	Object.values(navLinks).forEach(link => {
 		link.classList.remove('active');
 	});
 
-	// Adiciona 'active' apenas no link correspondente
-	if (navLinks[idSecao]) { // Segurança para links como 'novoOrcamento'
+	if (navLinks[idSecao]) 
 		navLinks[idSecao].classList.add('active');
-	}
 }
 
 navLinks.clientes.addEventListener('click', () => mostrarSecao('clientes'));
@@ -70,7 +66,7 @@ navLinks.orcamentos.addEventListener('click', () => { mostrarSecao('orcamentos')
 navLinks.desenho.addEventListener('click', () => mostrarSecao('desenho'));
 
 // -------------------------------------------------------------------
-// 5. LÓGICA DE CLIENTES (Sem alteração)
+// 5. LÓGICA DE CLIENTES
 // -------------------------------------------------------------------
 
 const formCliente = document.getElementById('formCliente');
@@ -125,6 +121,7 @@ async function salvarCliente(event) {
 		formCliente.reset();
 		clienteIdInput.value = '';
 		carregarClientes();
+		carregarClientesGlobal();
 	} catch (error) { console.error('Falha ao salvar cliente:', error); }
 }
 
@@ -141,21 +138,71 @@ async function carregarFormularioEdicaoCliente(id) {
 }
 
 async function excluirCliente(id) {
-	if (!confirm('Tem certeza?')) return;
-	try {
-		await fetch(`${apiUrlClientes}/${id}`, { method: 'DELETE' });
-		carregarClientes();
-	} catch (error) { console.error('Falha ao excluir cliente:', error); }
+	Swal.fire({
+		title: 'Tem certeza?',
+		text: "Você não poderá reverter esta ação!",
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		confirmButtonText: 'Sim, excluir!',
+		cancelButtonText: 'Cancelar'
+		}).then(async (result) => {
+
+			if (result.isConfirmed) {
+				try {
+					const response = await fetch(`${apiUrlClientes}/${id}`, { method: 'DELETE' });
+
+					if (!response.ok) {
+						showToastError('Erro ao excluir o cliente.');
+						throw new Error('Erro ao excluir.'); 
+					}
+
+					showToastSuccess('Cliente excluído com sucesso!');
+					carregarClientes();
+
+				} catch (error) {
+					console.error('Falha ao excluir cliente:', error);
+				}
+			}
+		});
 }
 
 async function abrirModalDetalhes(id) {
-	idOrcamentoAberto = id; // <-- PASSO 2: Guarde o ID do orçamento
+	idOrcamentoAberto = id;
 
 	try {
-		modalContainer.classList.add('is-active'); // (ou .remove('hidden'))
-	} catch (error) {
-		console.error("Falha ao abrir detalhes:", error);
-	}
+		const response = await fetch(`${apiUrlOrcamentos}/${id}`);
+		if (!response.ok) throw new Error('Falha ao buscar detalhes.');
+		const orcamento = await response.json();
+
+		orcamentoAbertoAtual = orcamento; 
+
+		modalOrcamentoId.textContent = `#${orcamento.orcamentoID}`;
+		modalClienteNome.textContent = orcamento.cliente.nome;
+		modalData.textContent = new Date(orcamento.dataCriacao).toLocaleString();
+		modalStatus.textContent = orcamento.status;
+		modalValorTotal.textContent = `Total: R$ ${orcamento.valorTotal.toFixed(2)}`;
+
+		modalCorpoTabela.innerHTML = '';
+		orcamento.itens.forEach(item => {
+			const tr = document.createElement('tr');
+			tr.innerHTML = `
+	<td data-descricao="${item.produto.descricao || ''}">${item.produto.nome}</td>
+		<td>${item.quantidade}</td>
+		<td>R$ ${item.precoUnitarioVenda.toFixed(2)}</td>
+		<td>R$ ${(item.quantidade * item.precoUnitarioVenda).toFixed(2)}</td>
+		`;
+		modalCorpoTabela.appendChild(tr);
+		});
+
+		modalContainer.classList.remove('hidden');
+
+		} catch (error) {
+			console.error("Falha ao abrir detalhes:", error);
+			orcamentoAbertoAtual = null;
+			idOrcamentoAberto = 0;
+		}
 }
 
 formCliente.addEventListener('submit', salvarCliente);
@@ -169,7 +216,7 @@ corpoTabelaClientes.addEventListener('click', (event) => {
 });
 
 // -------------------------------------------------------------------
-// 6. LÓGICA DE CATEGORIAS (Sem alteração)
+// 6. LÓGICA DE CATEGORIAS
 // -------------------------------------------------------------------
 
 const formCategoria = document.getElementById('formCategoria');
@@ -195,7 +242,6 @@ async function carregarCategorias() {
 			corpoTabelaCategorias.appendChild(tr);
 		});
 
-		// **IMPORTANTE**: Atualiza o dropdown de produtos
 		popularDropdownCategorias(categorias); 
 
 	} catch (error) { console.error('Falha ao carregar categorias:', error); }
@@ -219,7 +265,7 @@ async function salvarCategoria(event) {
 		if (!response.ok) throw new Error('Erro ao salvar categoria');
 		formCategoria.reset();
 		categoriaIdInput.value = '';
-		carregarCategorias(); // Recarrega categorias (e o dropdown)
+		carregarCategorias();
 	} catch (error) { console.error('Falha ao salvar categoria:', error); }
 }
 
@@ -233,11 +279,34 @@ async function carregarFormularioEdicaoCategoria(id) {
 }
 
 async function excluirCategoria(id) {
-	if (!confirm('Tem certeza? (Isso pode dar erro se houver produtos vinculados)')) return;
-	try {
-		await fetch(`${apiUrlCategorias}/${id}`, { method: 'DELETE' });
-		carregarCategorias(); // Recarrega
-	} catch (error) { console.error('Falha ao excluir categoria:', error); }
+	Swal.fire({
+		title: 'Tem certeza? (Isso pode dar erro se houver produtos vinculados)',
+		text: "Você não poderá reverter esta ação!",
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		confirmButtonText: 'Sim, excluir!',
+		cancelButtonText: 'Cancelar'
+		}).then(async (result) => {
+
+			if (result.isConfirmed) {
+				try {
+					const response = await fetch(`${apiUrlCategorias}/${id}`, { method: 'DELETE' });
+
+					if (!response.ok) {
+						showToastError('Erro ao excluir o categoria.');
+						throw new Error('Erro ao excluir.'); 
+					}
+
+					showToastSuccess('Categoria excluído com sucesso!');
+					carregarCategorias();
+
+				} catch (error) {
+					console.error('Falha ao excluir categoria:', error);
+				}
+			}
+		});
 }
 
 formCategoria.addEventListener('submit', salvarCategoria);
@@ -251,7 +320,7 @@ corpoTabelaCategorias.addEventListener('click', (event) => {
 });
 
 // -------------------------------------------------------------------
-// 7. LÓGICA DE PRODUTOS (Sem alteração)
+// 7. LÓGICA DE PRODUTOS
 // -------------------------------------------------------------------
 
 const formProduto = document.getElementById('formProduto');
@@ -263,9 +332,8 @@ const produtoPrecoInput = document.getElementById('produtoPreco');
 const produtoUnidadeInput = document.getElementById('produtoUnidade');
 const produtoCategoriaSelect = document.getElementById('produtoCategoria');
 
-// Função Chave: Popula o <select> no formulário de produtos
 function popularDropdownCategorias(categorias) {
-	produtoCategoriaSelect.innerHTML = '<option value="">Selecione...</option>'; // Limpa
+	produtoCategoriaSelect.innerHTML = '<option value="">Selecione...</option>';
 	categorias.forEach(categoria => {
 		const option = document.createElement('option');
 		option.value = categoria.categoriaID;
@@ -282,10 +350,10 @@ async function carregarProdutos() {
 		produtos.forEach(produto => {
 			const tr = document.createElement('tr');
 			tr.innerHTML = `
-				<td>${produto.nome}</td>
+				<td data-descricao="${produto.descricao || ''}">${produto.nome}</td>
 				<td>R$ ${produto.precoVenda.toFixed(2)}</td>
 				<td>${produto.unidadeMedida}</td>
-				<td>${produto.categoria.nome}</td> 
+				<td>${produto.categoria ? produto.categoria.nome : 'N/A'}</td> 
 				<td>
 					<button class="btn-editar" data-id="${produto.produtoID}">Editar</button>
 					<button class="btn-excluir" data-id="${produto.produtoID}">Excluir</button>
@@ -305,13 +373,11 @@ async function salvarProduto(event) {
 		descricao: produtoDescricaoInput.value,
 		precoVenda: parseFloat(produtoPrecoInput.value),
 		unidadeMedida: produtoUnidadeInput.value,
-		// Pega o ID da categoria do <select>
 		categoriaID: parseInt(produtoCategoriaSelect.value) 
 	};
 
-	// Validação simples
 	if (!produto.categoriaID) {
-		alert('Por favor, selecione uma categoria.');
+		showToastError("Selecione uma categoria.");
 		return;
 	}
 
@@ -327,6 +393,7 @@ async function salvarProduto(event) {
 		formProduto.reset();
 		produtoIdInput.value = '';
 		carregarProdutos();
+		carregarProdutosGlobal();
 	} catch (error) { console.error('Falha ao salvar produto:', error); }
 }
 
@@ -339,17 +406,39 @@ async function carregarFormularioEdicaoProduto(id) {
 		produtoDescricaoInput.value = produto.descricao;
 		produtoPrecoInput.value = produto.precoVenda;
 		produtoUnidadeInput.value = produto.unidadeMedida;
-		// Define o <select> para a categoria correta
 		produtoCategoriaSelect.value = produto.categoriaID; 
 	} catch (error) { console.error('Falha ao carregar formulário (Produto):', error); }
 }
 
 async function excluirProduto(id) {
-	if (!confirm('Tem certeza?')) return;
-	try {
-		await fetch(`${apiUrlProdutos}/${id}`, { method: 'DELETE' });
-		carregarProdutos();
-	} catch (error) { console.error('Falha ao excluir produto:', error); }
+	Swal.fire({
+		title: 'Tem certeza?',
+		text: "Você não poderá reverter esta ação!",
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		confirmButtonText: 'Sim, excluir!',
+		cancelButtonText: 'Cancelar'
+	}).then(async (result) => {
+
+		if (result.isConfirmed) {
+			try {
+				const response = await fetch(`${apiUrlProdutos}/${id}`, { method: 'DELETE' });
+
+				if (!response.ok) {
+					showToastError('Erro ao excluir o produto.');
+					throw new Error('Erro ao excluir.'); 
+				}
+
+				showToastSuccess('produto excluído com sucesso!');
+				carregarProdutos();
+
+			} catch (error) {
+				console.error('Falha ao excluir produto:', error);
+			}
+		}
+	});
 }
 
 formProduto.addEventListener('submit', salvarProduto);
@@ -390,14 +479,10 @@ const modalStatus = document.getElementById('modalStatus');
 const modalCorpoTabela = document.getElementById('modalCorpoTabela');
 const modalValorTotal = document.getElementById('modalValorTotal');
 
-// --- Funções de Carregamento (chamadas no DCL) ---
-
-// Carrega TODOS os clientes e guarda na variável global
 async function carregarClientesGlobal() {
 	try {
 		const response = await fetch(apiUrlClientes);
 		todosClientes = await response.json();
-		// Popula o dropdown do formulário de orçamento
 		selectCliente.innerHTML = '<option value="">Selecione um cliente...</option>';
 		todosClientes.forEach(cliente => {
 			selectCliente.innerHTML += `<option value="${cliente.clienteID}">${cliente.nome}</option>`;
@@ -405,7 +490,6 @@ async function carregarClientesGlobal() {
 	} catch (error) { console.error('Falha ao carregar clientes globais:', error); }
 }
 
-// Carrega TODOS os produtos e guarda na variável global
 async function carregarProdutosGlobal() {
 	try {
 		const response = await fetch(apiUrlProdutos);
@@ -418,7 +502,6 @@ async function carregarProdutosGlobal() {
 	} catch (error) { console.error('Falha ao carregar produtos globais:', error); }
 }
 
-// Carrega a LISTA de orçamentos criados
 async function carregarOrcamentos() {
 	try {
 		const response = await fetch(apiUrlOrcamentos);
@@ -444,70 +527,57 @@ async function carregarOrcamentos() {
 }
 
 async function abrirFormularioEdicaoOrcamento(id) {
-    try {
-        // 1. Busca o orçamento completo (com itens)
-        const response = await fetch(`${apiUrlOrcamentos}/${id}`);
-        if (!response.ok) throw new Error('Falha ao buscar dados para edição.');
-        const orcamento = await response.json();
+	try {
+		const response = await fetch(`${apiUrlOrcamentos}/${id}`);
+		if (!response.ok) throw new Error('Falha ao buscar dados para edição.');
+		const orcamento = await response.json();
 
-        // 2. Limpa o formulário antes de preencher
-        limparFormularioOrcamento(); 
+		limparFormularioOrcamento(); 
 
-        // 3. Preenche os campos principais
-        document.getElementById('orcamentoIdEdit').value = orcamento.orcamentoID;
-        selectCliente.value = orcamento.cliente.clienteID;
-        
-        // 4. Atualiza a UI para o modo "Editar" (Seu código)
-        document.getElementById('tituloFormOrcamento').textContent = `Editar Orçamento #${id}`;
-        document.getElementById('btnSalvarOrcamento').textContent = 'Atualizar Orçamento';
+		document.getElementById('orcamentoIdEdit').value = orcamento.orcamentoID;
+		selectCliente.value = orcamento.cliente.clienteID;
 
-        // 5. Preenche a lista de itens temporários com dados do orçamento
-        itensOrcamentoTemporario = orcamento.itens.map(item => ({
-            produtoID: item.produto.produtoID,
-            nome: item.produto.nome,
-            quantidade: item.quantidade,
-            precoUnitario: item.precoUnitarioVenda, // Usa o preço que foi salvo
-            subtotal: item.quantidade * item.precoUnitarioVenda
-        }));
+		document.getElementById('tituloFormOrcamento').textContent = `Editar Orçamento #${id}`;
+		document.getElementById('btnSalvarOrcamento').textContent = 'Atualizar Orçamento';
 
-        // 6. Renderiza a tabela de itens e muda de seção
-        renderizarTabelaTemp();
-        mostrarSecao('novoOrcamento');
-        
-    } catch (error) {
-        console.error("Falha ao abrir formulário de edição:", error);
-        alert("Não foi possível carregar o orçamento para edição.");
-    }
+		itensOrcamentoTemporario = orcamento.itens.map(item => ({
+			produtoID: item.produto.produtoID,
+			nome: item.produto.nome,
+			quantidade: item.quantidade,
+			precoUnitario: item.precoUnitarioVenda,
+			subtotal: item.quantidade * item.precoUnitarioVenda
+		}));
+
+		renderizarTabelaTemp();
+		mostrarSecao('novoOrcamento');
+
+	} catch (error) {
+		console.error("Falha ao abrir formulário de edição:", error);
+		showToastError("Não foi possível carregar o orçamento para edição.");
+	}
 }
 
-// --- Funções do Formulário de Novo Orçamento ---
-
-// Adiciona um item à lista temporária
 function adicionarItemTemp() {
 	const produtoID = parseInt(selectProduto.value);
 	const quantidade = parseFloat(inputQuantidade.value);
 
-	// Validação
 	if (!produtoID || !quantidade || quantidade <= 0) {
-		alert("Selecione um produto e uma quantidade válida.");
+		showToastError("Selecione um produto e uma quantidade válida.");
 		return;
 	}
 
-	// Verifica se o item já está na lista (para evitar duplicados)
 	const itemExistente = itensOrcamentoTemporario.find(i => i.produtoID === produtoID);
 	if (itemExistente) {
-		alert("Este produto já foi adicionado.");
+		showToastError("Este produto já foi adicionado.");
 		return;
 	}
 
-	// Busca o produto na nossa lista global
 	const produto = todosProdutos.find(p => p.produtoID === produtoID);
 	if (!produto) {
-		alert("Produto não encontrado.");
+		showToastError("Produto não encontrado.");
 		return;
 	}
 
-	// Adiciona à lista temporária
 	itensOrcamentoTemporario.push({
 		produtoID: produto.produtoID,
 		nome: produto.nome,
@@ -516,17 +586,14 @@ function adicionarItemTemp() {
 		subtotal: produto.precoVenda * quantidade
 	});
 
-	// Redesenha a tabela de itens temporários
 	renderizarTabelaTemp();
 }
 
-// Remove um item da lista temporária
 function removerItemTemp(produtoID) {
 	itensOrcamentoTemporario = itensOrcamentoTemporario.filter(i => i.produtoID !== produtoID);
 	renderizarTabelaTemp();
 }
 
-// Redesenha a tabela temporária e o total
 function renderizarTabelaTemp() {
 	corpoTabelaItensTemp.innerHTML = '';
 	let total = 0;
@@ -535,10 +602,10 @@ function renderizarTabelaTemp() {
 		total += item.subtotal;
 		const tr = document.createElement('tr');
 		tr.innerHTML = `
-			<td>${item.nome}</td>
-			<td>${item.quantidade}</td>
-			<td>R$ ${item.precoUnitario.toFixed(2)}</td>
-			<td>R$ ${item.subtotal.toFixed(2)}</td>
+			<td data-descricao="${item.descricao || ''}">${item.nome}</td>
+				<td>${item.quantidade}</td>
+				<td>R$ ${item.precoUnitario.toFixed(2)}</td>
+				<td>R$ ${item.subtotal.toFixed(2)}</td>
 			<td>
 				<button type="button" class="btn-excluir btn-remover-item" data-id="${item.produtoID}">X</button>
 			</td>
@@ -549,19 +616,16 @@ function renderizarTabelaTemp() {
 	spanTotalTemp.textContent = `Total: R$ ${total.toFixed(2)}`;
 }
 
-// Limpa o formulário e a lista temporária
 function limparFormularioOrcamento() {
-    formNovoOrcamento.reset();
-    document.getElementById('orcamentoIdEdit').value = '';
-    itensOrcamentoTemporario = [];
-    renderizarTabelaTemp();
+	formNovoOrcamento.reset();
+	document.getElementById('orcamentoIdEdit').value = '';
+	itensOrcamentoTemporario = [];
+	renderizarTabelaTemp();
 
-    // Reseta a UI para o modo "Novo"
-    document.getElementById('tituloFormOrcamento').textContent = 'Novo Orçamento';
-    document.getElementById('btnSalvarOrcamento').textContent = 'Salvar Orçamento';
+	document.getElementById('tituloFormOrcamento').textContent = 'Novo Orçamento';
+	document.getElementById('btnSalvarOrcamento').textContent = 'Salvar Orçamento';
 }
 
-// Salva o orçamento no banco (envia o DTO)
 async function salvarOrcamento(event) {
 	event.preventDefault();
 
@@ -569,18 +633,17 @@ async function salvarOrcamento(event) {
 	const clienteID = parseInt(selectCliente.value);
 
 	if (!clienteID) {
-		alert("Selecione um cliente.");
+		showToastError("Selecione um cliente.");
 		return;
 	}
 	if (itensOrcamentoTemporario.length === 0) {
-		alert("Adicione pelo menos um item ao orçamento.");
+		showToastError("Adicione pelo menos um item ao orçamento.");
 		return;
 	}
 
-	// Monta o DTO (Data Transfer Object) para a API
 	const orcamentoDto = {
 		clienteID: clienteID,
-		status: "Em Aberto", // Você pode adicionar um campo de status se quiser
+		status: "Em Aberto",
 		itens: itensOrcamentoTemporario.map(item => ({
 			produtoID: item.produtoID,
 			quantidade: item.quantidade
@@ -588,133 +651,110 @@ async function salvarOrcamento(event) {
 	};
 
 	const metodo = idOrcamento ? 'PUT' : 'POST';
-    const url = idOrcamento ? `${apiUrlOrcamentos}/${idOrcamento}` : apiUrlOrcamentos;
+		const url = idOrcamento ? `${apiUrlOrcamentos}/${idOrcamento}` : apiUrlOrcamentos;
 
 	try {
-        // 3. ATUALIZE: Use as novas variáveis 'url' e 'metodo'
-        const response = await fetch(url, { // <-- MUDANÇA
-            method: metodo,                 // <-- MUDANÇA
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(orcamentoDto)
-        });
+		const response = await fetch(url, {
+			method: metodo, 
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(orcamentoDto)
+		});
 
-        if (!response.ok) {
-            // 4. ATUALIZE: Mensagem de erro dinâmica
-            throw new Error(`Erro ao ${idOrcamento ? 'atualizar' : 'salvar'} o orçamento.`); 
-        }
+		if (!response.ok) {
+			throw new Error(`Erro ao ${idOrcamento ? 'atualizar' : 'salvar'} o orçamento.`); 
+		}
 
-        // 5. ATUALIZE: Mensagem de sucesso dinâmica
-        alert(`Orçamento ${idOrcamento ? 'atualizado' : 'salvo'} com sucesso!`); 
-        
-        limparFormularioOrcamento();
-        mostrarSecao('orcamentos'); // Volta para a lista
-        carregarOrcamentos(); // Recarrega a lista principal
+		showToastSuccess(`Orçamento ${idOrcamento ? 'atualizado' : 'salvo'} com sucesso!`);
 
-    } catch (error) {
-        console.error('Falha ao salvar orçamento:', error);
-    }
+		limparFormularioOrcamento();
+		mostrarSecao('orcamentos');
+		carregarOrcamentos();
+
+		} catch (error) {
+			console.error('Falha ao salvar orçamento:', error);
+		}
 }
 
-// Exclui um orçamento da lista principal
 async function excluirOrcamento(id) {
-	if (!confirm('Tem certeza que deseja excluir este orçamento?')) return;
-	try {
-		const response = await fetch(`${apiUrlOrcamentos}/${id}`, { method: 'DELETE' });
-		if (!response.ok) throw new Error('Erro ao excluir.');
-		carregarOrcamentos(); // Recarrega a lista
-	} catch (error) { console.error('Falha ao excluir orçamento:', error); }
+	Swal.fire({
+		title: 'Tem certeza?',
+		text: "Você não poderá reverter esta ação!",
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		confirmButtonText: 'Sim, excluir!',
+		cancelButtonText: 'Cancelar'
+	}).then(async (result) => {
+
+		if (result.isConfirmed) {
+			try {
+				const response = await fetch(`${apiUrlOrcamentos}/${id}`, { method: 'DELETE' });
+
+				if (!response.ok) {
+					showToastError('Erro ao excluir o orçamento.');
+					throw new Error('Erro ao excluir.'); 
+				}
+
+				showToastSuccess('Orçamento excluído com sucesso!');
+				carregarOrcamentos();
+
+			} catch (error) {
+				console.error('Falha ao excluir orçamento:', error);
+			}
+		}
+	});
 }
 
 async function aprovarOrcamento(id) {
-    // 1. Cria o DTO de status
-    const statusDto = { status: "Aprovado" };
+	const statusDto = { status: "Aprovado" };
 
-    // 2. Chama a NOVA rota
-    const url = `${apiUrlOrcamentos}/${id}/status`;
+	const url = `${apiUrlOrcamentos}/${id}/status`;
 
-    try {
-        await fetch(url, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(statusDto)
-        });
-        
-        carregarOrcamentos(); // Recarrega a lista para mostrar o novo status
-
-    } catch (error) {
-        console.error("Falha ao aprovar orçamento:", error);
-    }
-}
-
-// --- Funções do Modal de Detalhes ---
-async function abrirModalDetalhes(id) {
 	try {
-		const response = await fetch(`${apiUrlOrcamentos}/${id}`);
-		if (!response.ok) throw new Error('Falha ao buscar detalhes.');
-		const orcamento = await response.json();
-
-		// Preenche os dados do modal
-		modalOrcamentoId.textContent = `#${orcamento.orcamentoID}`;
-		modalClienteNome.textContent = orcamento.cliente.nome;
-		modalData.textContent = new Date(orcamento.dataCriacao).toLocaleString();
-		modalStatus.textContent = orcamento.status;
-		modalValorTotal.textContent = `Total: R$ ${orcamento.valorTotal.toFixed(2)}`;
-
-		// Preenche a tabela de itens do modal
-		modalCorpoTabela.innerHTML = '';
-		orcamento.itens.forEach(item => {
-			const tr = document.createElement('tr');
-			tr.innerHTML = `
-				<td>${item.produto.nome}</td>
-				<td>${item.quantidade}</td>
-				<td>R$ ${item.precoUnitarioVenda.toFixed(2)}</td>
-				<td>R$ ${(item.quantidade * item.precoUnitarioVenda).toFixed(2)}</td>
-			`;
-			modalCorpoTabela.appendChild(tr);
+		await fetch(url, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(statusDto)
 		});
 
-		// Mostra o modal
-		modalContainer.classList.remove('hidden');
+		carregarOrcamentos();
 
 	} catch (error) {
-		console.error("Falha ao abrir detalhes:", error);
+		console.error("Falha ao aprovar orçamento:", error);
 	}
 }
 
 function fecharModalDetalhes() {
 	modalContainer.classList.add('hidden');
+	orcamentoAbertoAtual = null;
 }
 
 // -------------------------------------------------------------------
-// 9. LÓGICA DE DESENHO 2D (Konva.js) (NOVO)
+// 9. LÓGICA DE DESENHO 2D (Konva.js)
 // -------------------------------------------------------------------
 
-// --- Variáveis Globais do Konva ---
-let stage; // O "Palco" principal
-let backgroundLayer; // Camada para a planta baixa
-let objectLayer; // Camada para ícones (PCs, Switches)
+let stage;
+let backgroundLayer;
+let objectLayer;
 
-// --- Seletores do Módulo de Desenho ---
 const inputPlantaBaixa = document.getElementById('inputPlantaBaixa');
 
 function inicializarCanvas() {
-	// Só inicializa se o 'stage' não foi criado ainda
 	if (stage) return; 
 
 	const container = document.getElementById('container-canvas');
-	if (!container) return; // Segurança
+	if (!container) return;
 
 	const width = container.clientWidth;
 	const height = container.clientHeight;
 
-	// 1. Criar o Palco (Stage)
 	stage = new Konva.Stage({
 		container: 'container-canvas', 
 		width: width,
 		height: height,
 	});
 
-	// 2. Criar as Camadas (Layers)
 	backgroundLayer = new Konva.Layer();
 	objectLayer = new Konva.Layer();
 	stage.add(backgroundLayer, objectLayer);
@@ -722,122 +762,96 @@ function inicializarCanvas() {
 	console.log("Canvas Konva inicializado.");
 
 	// --- LÓGICA DE DRAG AND DROP (D&D) ---
-
-	// 3. Ouvir o DRAGOVER no container
-	// (Necessário para que o navegador permita o 'drop')
 	container.addEventListener('dragover', (e) => {
 		e.preventDefault(); // Permite soltar
 	});
 
-	// 4. Ouvir o DROP no container
 	container.addEventListener('drop', (e) => {
 		e.preventDefault();
 
-		// Garante que o item arrastado é da nossa toolbox
 		if (dragItemId === null) return;
 
-		// Pega a posição do mouse RELATIVA ao stage
 		stage.setPointersPositions(e);
 		const pos = stage.getPointerPosition();
 
-		// Adiciona o item no canvas
 		adicionarItemCanvas(pos.x, pos.y, dragItemId);
 
-		// Limpa o ID do item
 		dragItemId = null;
 	});
 }
 
 function exportarCanvasPNG() {
 	if (!stage) {
-		alert("O canvas ainda não foi inicializado.");
+		showToastError("O canvas ainda não foi inicializado.");
 		return;
 	}
 
-	// 1. Usa o método .toDataURL() do Konva para gerar um PNG
-	// Isso "achata" todas as camadas (fundo + objetos)
 	const dataURL = stage.toDataURL({ 
-		pixelRatio: 1 // Pode aumentar para 2 para maior resolução
+		pixelRatio: 1
 	});
 
-	// 2. Cria um link (<a>) temporário na memória
 	const link = document.createElement('a');
 	link.href = dataURL;
-	link.download = 'desenho_rede_sior.png'; // O nome do arquivo
+	link.download = 'desenho_rede_sior.png';
 
-	// 3. Simula o clique no link para iniciar o download
-	document.body.appendChild(link); // (Precisa estar no DOM para o Firefox)
+	document.body.appendChild(link);
 	link.click();
 	document.body.removeChild(link);
 }
 
-// Função para carregar a imagem da planta baixa
 function carregarPlantaBaixa(event) {
 	const file = event.target.files[0];
 	if (!file) return;
 
-	// Cria uma URL local temporária para a imagem
 	const imgUrl = URL.createObjectURL(file);
 
-	// Cria um objeto de Imagem do JavaScript
 	const imageObj = new Image();
 	imageObj.src = imgUrl;
 
-	// Espera a imagem carregar
 	imageObj.onload = () => {
-		// Limpa qualquer planta antiga
 		backgroundLayer.destroyChildren();
 
-		// Cria uma Imagem Konva
 		const konvaImage = new Konva.Image({
 			x: 0,
 			y: 0,
 			image: imageObj,
-			width: stage.width(), // Faz a imagem caber no canvas
+			width: stage.width(),
 			height: stage.height(),
-			name: 'planta-baixa' // Dá um nome para referência
+			name: 'planta-baixa'
 		});
 
-		// Adiciona a imagem à camada de fundo
 		backgroundLayer.add(konvaImage);
 
-		// Manda a camada de fundo para trás de todas
 		backgroundLayer.moveToBottom();
 
-		// Redesenha a camada
 		backgroundLayer.draw();
 
-		// Limpa o valor do input para permitir carregar a mesma imagem de novo
 		event.target.value = null; 
 	};
 
 	imageObj.onerror = () => {
-		alert("Não foi possível carregar a imagem.");
+		showToastError("Não foi possível carregar a imagem.");
 	}
 }
 
 // -------------------------------------------------------------------
-// (Nova Seção) 9.5: FUNÇÕES GLOBAIS DE DESENHO
+// 9.5: FUNÇÕES GLOBAIS DE DESENHO
 // -------------------------------------------------------------------
+
 function carregarAssetsKonva() {
-	// PC
 	konvaImages['tool-pc'] = new Image();
 	konvaImages['tool-pc'].crossOrigin = "Anonymous"; 
 
-	// ADICIONE ?v=1 AQUI
 	konvaImages['tool-pc'].src = 'https://img.icons8.com/ios-filled/50/workstation.png?v=1'; 
 	konvaImages['tool-pc'].onerror = () => console.error("Falha ao carregar ícone PC");
 
-	// Switch
 	konvaImages['tool-switch'] = new Image();
 	konvaImages['tool-switch'].crossOrigin = "Anonymous"; 
 
-	// ADICIONE ?v=1 AQUI
 	konvaImages['tool-switch'].src = 'https://img.icons8.com/ios-filled/50/router.png?v=1'; 
 	konvaImages['tool-switch'].onerror = () => console.error("Falha ao carregar ícone Switch");
 }
 
-// Função que cria o item no canvas
 function adicionarItemCanvas(x, y, id) {
 	if (!konvaImages[id]) {
 		console.error("Asset não carregado:", id);
@@ -850,15 +864,13 @@ function adicionarItemCanvas(x, y, id) {
 		image: konvaImages[id],
 		width: 40,
 		height: 40,
-		draggable: true, // <-- Permite mover o ícone DEPOIS de soltar
-		name: 'objeto-rede' // Um nome para identificação
+		draggable: true,
+		name: 'objeto-rede'
 	});
 
-	// Centraliza o ícone no cursor (opcional, mas bom)
 	konvaImage.offsetX(konvaImage.width() / 2);
 	konvaImage.offsetY(konvaImage.height() / 2);
 
-	// Adiciona à camada de objetos (a camada da frente)
 	objectLayer.add(konvaImage);
 	objectLayer.draw();
 }
@@ -875,10 +887,22 @@ btnNovoOrcamento.addEventListener('click', () => {
 
 // Gatilho 2: Botão "Cancelar" do form
 btnCancelarNovoOrcamento.addEventListener('click', () => {
-	if (confirm("Deseja cancelar? Todos os itens adicionados serão perdidos.")) {
-		limparFormularioOrcamento();
-		mostrarSecao('orcamentos');
-	}
+
+	Swal.fire({
+		title: 'Deseja cancelar?',
+		text: "Todos os itens adicionados serão perdidos.",
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#d33',
+		cancelButtonColor: '#3085d6',
+		confirmButtonText: 'Sim, cancelar!',
+		cancelButtonText: 'Não, continuar'
+	}).then((result) => {
+		if (result.isConfirmed) {
+			limparFormularioOrcamento();
+			mostrarSecao('orcamentos');
+		}
+	});
 });
 
 // Gatilho 3: Botão "Adicionar Item"
@@ -897,44 +921,65 @@ corpoTabelaItensTemp.addEventListener('click', (event) => {
 
 // Gatilho 6: Tabela Principal de Orçamentos (para "Ver" e "Excluir")
 corpoTabelaOrcamentos.addEventListener('click', (event) => {
-	// Botão Excluir
 	if (event.target.classList.contains('btn-excluir')) {
 		const id = parseInt(event.target.dataset.id);
 		excluirOrcamento(id);
 	}
-	// Botão Ver Detalhes
 	if (event.target.classList.contains('btn-ver-detalhes')) {
 		const id = parseInt(event.target.dataset.id);
 		abrirModalDetalhes(id);
 	}
 	if (event.target.classList.contains('btn-editar-orcamento')) {
-        const id = parseInt(event.target.dataset.id);
-        abrirFormularioEdicaoOrcamento(id);
-    }
+		const id = parseInt(event.target.dataset.id);
+		abrirFormularioEdicaoOrcamento(id);
+		}
 });
 
 // Gatilho 7: Fechar o Modal
 modalCloseBtn.addEventListener('click', fecharModalDetalhes);
 modalContainer.addEventListener('click', (event) => {
-	// Fecha se clicar fora do conteúdo
 	if (event.target === modalContainer) {
 		fecharModalDetalhes()
 	}
 });
 
-// --- Gatilhos do Módulo de Desenho ---
+// Gatilhos do Módulo de Desenho
 inputPlantaBaixa.addEventListener('change', carregarPlantaBaixa);
 
-// Gatilho especial: Inicializa o canvas QUANDO a aba de Desenho for clicada
 navLinks.desenho.addEventListener('click', () => {
 	mostrarSecao('desenho');
-	// Usamos setTimeout para garantir que o 'div' está visível antes de o Konva medir
 	setTimeout(inicializarCanvas, 10); 
 });
+
+function limparCanvas() {
+	Swal.fire({
+		title: 'Limpar o desenho?',
+		text: "Tem certeza? Todos os itens adicionados serão removidos.",
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#d33',
+		cancelButtonColor: '#3085d6',
+		confirmButtonText: 'Sim, limpar!',
+		cancelButtonText: 'Cancelar'
+	}).then((result) => {
+
+		if (result.isConfirmed) {
+			if (objectLayer) { 
+				objectLayer.destroyChildren();
+				objectLayer.draw();
+
+				showToastSuccess("Desenho limpo com sucesso!");
+			} else {
+				showToastError("Erro: Camada de desenho não encontrada.");
+			}
+		}
+	});
+}
 
 // -------------------------------------------------------------------
 // 11. INICIALIZAÇÃO
 // -------------------------------------------------------------------
+
 document.addEventListener('DOMContentLoaded', () => {
 	// Define a aba "Orçamentos" como padrão
 	mostrarSecao('orcamentos');
@@ -952,15 +997,13 @@ document.addEventListener('DOMContentLoaded', () => {
 	const btnBaixar = document.getElementById('btnBaixarPDF');
 		btnBaixar.addEventListener('click', () => {
 
-			// 1. Pega o elemento HTML que queremos converter
 			const elemento = document.getElementById('modalContentPDF');
 
-			// 2. Define as opções do PDF
 			const opt = {
-				margin: 0.5, // Margem em polegadas
-				filename: `orcamento_${idOrcamentoAberto}.pdf`, // Nome do arquivo
+				margin: 0.5,
+				filename: `orcamento_${idOrcamentoAberto}.pdf`,
 				image: { type: 'jpeg', quality: 0.98 },
-				html2canvas: { scale: 2 }, // Aumenta a qualidade da "foto"
+				html2canvas: { scale: 2 },
 		backgroundColor: '#ffffffff',
 			jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
 			};
@@ -969,15 +1012,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		html2pdf().from(elemento).set(opt).save().then(() => {
 
-			// PASSO C: DEPOIS que o PDF for salvo, remove a classe.
-			// Isso faz o modal voltar ao normal (com scroll).
 			elemento.classList.remove('pdf-export-mode');
 			});
 		});
 
-	carregarAssetsKonva(); // <-- ADICIONA AQUI
+		const btnExportarExcel = document.getElementById('btnExportarXLSX');
+			btnExportarExcel.addEventListener('click', exportarParaExcel);
 
-		// --- Adiciona Listeners da Toolbox de Desenho ---
+		const inputTelefone = document.getElementById('telefone');
+
+		if (inputTelefone) {
+			const mascaraTelefone = {
+				mask: [
+					{ mask: '(00) 0000-0000' },
+					{ mask: '(00) 00000-0000' }
+				]
+			};
+			const mascara = IMask(inputTelefone, mascaraTelefone);
+		}
+
+	carregarAssetsKonva();
+
 		document.getElementById('tool-pc').addEventListener('dragstart', (e) => {
 			dragItemId = e.target.id;
 		});
@@ -985,19 +1040,72 @@ document.addEventListener('DOMContentLoaded', () => {
 			dragItemId = e.target.id;
 		});
 	document.getElementById('btnExportarPNG').addEventListener('click', exportarCanvasPNG);
+	const btnClear = document.getElementById('btnLimparCanvas');
+		if (btnClear) {
+			btnClear.addEventListener('click', limparCanvas);
+		}
 });
+
+// -------------------------------------------------------------------
+// 12. EXTRAS
+// -------------------------------------------------------------------
+
+function exportarParaExcel() {
+	if (!orcamentoAbertoAtual) {
+		showToastError("Nenhum orçamento carregado para exportar.");
+		return;
+	}
+
+	const orc = orcamentoAbertoAtual;
+	let data = [];
+
+	data.push(["Orçamento ID:", orc.orcamentoID]);
+	data.push(["Cliente:", orc.cliente.nome]);
+	data.push(["Data:", new Date(orc.dataCriacao).toLocaleString()]);
+	data.push(["Status:", orc.status]);
+	data.push([]);
+
+	data.push(["Produto", "Quantidade", "Preço Unitário (R$)", "Subtotal (R$)"]);
+
+	orc.itens.forEach(item => {
+		const subtotal = item.quantidade * item.precoUnitarioVenda;
+		data.push([
+			item.produto.nome,
+			item.quantidade,
+			item.precoUnitarioVenda,
+			subtotal
+		]);
+	});
+
+	data.push([]);
+	data.push(["", "", "Total:", orc.valorTotal]);
+
+	const wb = XLSX.utils.book_new();
+
+	const ws = XLSX.utils.aoa_to_sheet(data);
+
+	ws['!cols'] = [
+		{ wch: 50 }, // Coluna A (Produto)
+		{ wch: 10 }, // Coluna B (Qtd)
+		{ wch: 20 }, // Coluna C (Preço Unit.)
+		{ wch: 20 } // Coluna D (Subtotal)
+	];
+
+	XLSX.utils.book_append_sheet(wb, ws, "Orçamento");
+
+	const nomeArquivo = `orcamento_${orc.orcamentoID}.xlsx`;
+	XLSX.writeFile(wb, nomeArquivo);
+}
 
 // ===== Alternância de Tema (Dark / Light) =====
 const btnTema = document.getElementById("toggleTema");
 
-// Carrega preferência anterior (se houver)
 const temaSalvo = localStorage.getItem("tema");
 if (temaSalvo === "light") {
 	document.body.classList.add("light-mode");
 	btnTema.textContent = "☀️";
 }
 
-// Evento de clique
 btnTema.addEventListener("click", () => {
 	document.body.classList.toggle("light-mode");
 
@@ -1006,3 +1114,35 @@ btnTema.addEventListener("click", () => {
 
 	btnTema.textContent = modoAtual === "light" ? "☀️" : "🌙";
 });
+
+/**
+* @param {string} message
+*/
+function showToastSuccess(message) {
+	Toastify({
+		text: message,
+		duration: 3000,
+		close: true,
+		gravity: "top",
+		position: "right",
+		style: {
+			background: "linear-gradient(to right, #00b09b, #96c93d)",
+		}
+	}).showToast();
+}
+
+/**
+* @param {string} message
+*/
+function showToastError(message) {
+	Toastify({
+		text: message,
+		duration: 3000,
+		close: true,
+		gravity: "top",
+		position: "right",
+		style: {
+			background: "linear-gradient(to right, #ff5f6d, #ffc371)",
+		}
+	}).showToast();
+}

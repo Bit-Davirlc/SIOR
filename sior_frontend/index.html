@@ -6,10 +6,16 @@
 	<title>SIOR - TCC</title>
 
 	<link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-dark@5/dark.css">
 
 	<script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/imask/7.6.0/imask.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+	
 </head>
 
 <body>
@@ -159,7 +165,7 @@
 							<option value="">Selecione um cliente...</option>
 						</select>
 					</div>
-					
+
 					<div id="campoStatus" class="hidden" style="margin-top: 10px;">
 						<label for="orcamentoStatus">Status:</label>
 						<select id="orcamentoStatus">
@@ -220,6 +226,26 @@
 					<button id="btnExportarPNG" class="btn-transferencia" style="margin-left: auto;">
 						Exportar como PNG
 					</button>
+					<button type="button" id="btnLimparCanvas" class="btn-perigo" title="Limpar tudo" style="
+						background-color: #ff0000;
+						color: var(--primary-text, #fff);
+						padding: 10px 18px;
+						border: none;
+						border-radius: 8px;
+						font-size: 0.95rem;
+						font-weight: 500;
+						cursor: pointer;
+						transition: background-color .15s 
+						ease, transform .15s 
+						ease, box-shadow .15s 
+						ease;
+						display: inline-flex;
+						align-items: center;
+						gap: 8px;
+						box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+					">
+						Limpar
+					</button>	
 					</div>
 
 				<div class="toolbox">
@@ -256,6 +282,9 @@
 			<button type="button" id="btnBaixarPDF" class="btn-secundario btn-imprimir">
 				Baixar PDF
 			</button>
+			<button type="button" id="btnExportarXLSX" class="btn-secundario btn-imprimir">
+				Exportar XLSX
+			</button>
 
 			<h2>Detalhes do Orçamento <span id="modalOrcamentoId"></span></h2>
 			<p><strong>Cliente:</strong> <span id="modalClienteNome"></span></p>
@@ -272,8 +301,7 @@
 		</div>
 	</div>
 
-
-
-	<script src="js/main.js"></script>
+	<script type="module" src="js/main.js"></script>
 </body>
+
 </html>
