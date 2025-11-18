@@ -15,6 +15,10 @@ let itensOrcamentoTemporario = [];
 let idOrcamentoAberto = 0;
 let orcamentoAbertoAtual = null;
 let konvaImages = {};
+let stage = null;
+let backgroundLayer = null;
+let objectLayer = null;
+let tr = null;
 let dragItemId = null;
 let mascaraTelefoneObj = null;
 
@@ -62,7 +66,7 @@ navLinks.clientes.addEventListener('click', () => mostrarSecao('clientes'));
 navLinks.categorias.addEventListener('click', () => mostrarSecao('categorias'));
 navLinks.produtos.addEventListener('click', () => mostrarSecao('produtos'));
 navLinks.orcamentos.addEventListener('click', () => { mostrarSecao('orcamentos');
-	carregarOrcamentos();}); // Recarrega a lista ao clicar
+	carregarOrcamentos();});
 navLinks.desenho.addEventListener('click', () => mostrarSecao('desenho'));
 
 // -------------------------------------------------------------------
@@ -494,7 +498,6 @@ async function carregarProdutosGlobal() {
 	try {
 		const response = await fetch(apiUrlProdutos);
 		todosProdutos = await response.json();
-		// Popula o dropdown do formulário de orçamento
 		selectProduto.innerHTML = '<option value="">Selecione um produto...</option>';
 		todosProdutos.forEach(produto => {
 			selectProduto.innerHTML += `<option value="${produto.produtoID}">${produto.nome} (R$ ${produto.precoVenda.toFixed(2)})</option>`;
@@ -731,53 +734,66 @@ function fecharModalDetalhes() {
 }
 
 // -------------------------------------------------------------------
-// 9. LÓGICA DE DESENHO 2D (Konva.js)
+// 9. LÓGICA DE DESENHO 2D - Konva.js
 // -------------------------------------------------------------------
-
-let stage;
-let backgroundLayer;
-let objectLayer;
 
 const inputPlantaBaixa = document.getElementById('inputPlantaBaixa');
 
 function inicializarCanvas() {
-	if (stage) return; 
+    if (stage) return;
 
-	const container = document.getElementById('container-canvas');
-	if (!container) return;
+    const container = document.getElementById('container-canvas');
+    if (!container) return;
 
-	const width = container.clientWidth;
-	const height = container.clientHeight;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
 
-	stage = new Konva.Stage({
-		container: 'container-canvas', 
-		width: width,
-		height: height,
-	});
+    stage = new Konva.Stage({
+        container: container.id,
+        width: width,
+        height: height,
+    });
 
-	backgroundLayer = new Konva.Layer();
-	objectLayer = new Konva.Layer();
-	stage.add(backgroundLayer, objectLayer);
+    backgroundLayer = new Konva.Layer();
+    objectLayer = new Konva.Layer();
+    stage.add(backgroundLayer, objectLayer);
 
-	console.log("Canvas Konva inicializado.");
+    tr = new Konva.Transformer({
+        nodes: [],
+        keepRatio: true,
+        enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+        rotateAnchorOffset: 60,
+    });
+    objectLayer.add(tr);
 
-	// --- LÓGICA DE DRAG AND DROP (D&D) ---
-	container.addEventListener('dragover', (e) => {
-		e.preventDefault(); // Permite soltar
-	});
+    stage.on('click tap', function (e) {
+		console.log("Clicou em:", e.target.attrs.name || "Objeto sem nome");
+        if (e.target === stage) {
+            tr.nodes([]);
+            tr.getLayer().batchDraw();
+            return;
+        }
 
-	container.addEventListener('drop', (e) => {
-		e.preventDefault();
+        if (!e.target.hasName('item-desenho')) {
+            return;
+        }
 
-		if (dragItemId === null) return;
+        const itemClicado = e.target;
+        tr.nodes([itemClicado]);
+        tr.getLayer().batchDraw();
+    });
 
-		stage.setPointersPositions(e);
-		const pos = stage.getPointerPosition();
+    console.log("Canvas Konva inicializado.");
 
-		adicionarItemCanvas(pos.x, pos.y, dragItemId);
-
-		dragItemId = null;
-	});
+    container.addEventListener('dragover', (e) => { e.preventDefault(); });
+    container.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragItemId === null) return;
+        stage.setPointersPositions(e);
+        const pos = stage.getPointerPosition();
+        adicionarItemCanvas(pos.x, pos.y, dragItemId);
+        dragItemId = null;
+    });
 }
 
 function exportarCanvasPNG() {
@@ -852,31 +868,46 @@ function carregarAssetsKonva() {
 	konvaImages['tool-switch'].onerror = () => console.error("Falha ao carregar ícone Switch");
 }
 
-function adicionarItemCanvas(x, y, id) {
-	if (!konvaImages[id]) {
-		console.error("Asset não carregado:", id);
-		return;
-	}
+function adicionarItemCanvas(x, y, tipoIcone) {
+    const imagemPreCarregada = konvaImages[tipoIcone];
 
-	const konvaImage = new Konva.Image({
-		x: x,
-		y: y,
-		image: konvaImages[id],
-		width: 40,
-		height: 40,
-		draggable: true,
-		name: 'objeto-rede'
-	});
+    if (!imagemPreCarregada) {
+        if (typeof showToastError === 'function') {
+            showToastError("Erro: Ícone ainda não carregado ou não encontrado.");
+        } else {
+            console.error("Erro: Imagem não encontrada em konvaImages para:", tipoIcone);
+        }
+        return; 
+    }
 
-	konvaImage.offsetX(konvaImage.width() / 2);
-	konvaImage.offsetY(konvaImage.height() / 2);
+    const konvaImage = new Konva.Image({
+        x: x,
+        y: y,
+        image: imagemPreCarregada,
+        width: 50,
+        height: 50,
+        draggable: true,
+        name: 'item-desenho'
+    });
 
-	objectLayer.add(konvaImage);
-	objectLayer.draw();
+    konvaImage.on('mouseenter', function () {
+        stage.container().style.cursor = 'move';
+    });
+    konvaImage.on('mouseleave', function () {
+        stage.container().style.cursor = 'default';
+    });
+
+    objectLayer.add(konvaImage);
+    objectLayer.batchDraw();
+
+    if (tr) {
+        tr.nodes([konvaImage]);
+        tr.getLayer().batchDraw(); 
+    }
 }
 
 // -------------------------------------------------------------------
-// 10. EVENT LISTENERS (Gatilhos)
+// 10. EVENT LISTENERS
 // -------------------------------------------------------------------
 
 // Gatilho 1: Botão "Novo Orçamento"
@@ -911,7 +942,7 @@ btnAdicionarItem.addEventListener('click', adicionarItemTemp);
 // Gatilho 4: Submit do Formulário de Orçamento
 formNovoOrcamento.addEventListener('submit', salvarOrcamento);
 
-// Gatilho 5: Tabela de Itens Temporários (para o botão "X" de remover)
+// Gatilho 5: Tabela de Itens Temporários
 corpoTabelaItensTemp.addEventListener('click', (event) => {
 	if (event.target.classList.contains('btn-remover-item')) {
 		const produtoID = parseInt(event.target.dataset.id);
@@ -919,7 +950,7 @@ corpoTabelaItensTemp.addEventListener('click', (event) => {
 	}
 });
 
-// Gatilho 6: Tabela Principal de Orçamentos (para "Ver" e "Excluir")
+// Gatilho 6: Tabela Principal de Orçamentos
 corpoTabelaOrcamentos.addEventListener('click', (event) => {
 	if (event.target.classList.contains('btn-excluir')) {
 		const id = parseInt(event.target.dataset.id);
@@ -952,28 +983,40 @@ navLinks.desenho.addEventListener('click', () => {
 });
 
 function limparCanvas() {
-	Swal.fire({
-		title: 'Limpar o desenho?',
-		text: "Tem certeza? Todos os itens adicionados serão removidos.",
-		icon: 'warning',
-		showCancelButton: true,
-		confirmButtonColor: '#d33',
-		cancelButtonColor: '#3085d6',
-		confirmButtonText: 'Sim, limpar!',
-		cancelButtonText: 'Cancelar'
-	}).then((result) => {
+    Swal.fire({
+        title: 'Limpar o desenho?',
+        text: "Tem certeza? Todos os itens e a planta baixa serão removidos.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sim, limpar tudo!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
 
-		if (result.isConfirmed) {
-			if (objectLayer) { 
-				objectLayer.destroyChildren();
-				objectLayer.draw();
+        if (result.isConfirmed) {
+            if (objectLayer && tr) { 
+                
+                tr.nodes([]);
 
-				showToastSuccess("Desenho limpo com sucesso!");
-			} else {
-				showToastError("Erro: Camada de desenho não encontrada.");
-			}
-		}
-	});
+                const icones = objectLayer.find('.item-desenho');
+                icones.forEach(icone => {
+                    icone.destroy();
+                });
+
+                if (backgroundLayer) {
+                    backgroundLayer.destroyChildren();
+                    backgroundLayer.draw();
+                }
+
+                objectLayer.batchDraw();
+
+                showToastSuccess("Desenho e planta baixa limpos com sucesso!");
+            } else {
+                showToastError("Erro: Camadas não encontradas.");
+            }
+        }
+    });
 }
 
 // -------------------------------------------------------------------
@@ -984,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	// Define a aba "Orçamentos" como padrão
 	mostrarSecao('orcamentos');
 
-	// Carrega dados essenciais UMA VEZ
+	// Carrega dados essenciais
 	carregarClientesGlobal();
 	carregarProdutosGlobal();
 
@@ -993,6 +1036,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	carregarProdutos();
 	carregarOrcamentos();
 	carregarCategorias();
+
+	// Carrega o Konva
+	carregarAssetsKonva();
 
 	const btnBaixar = document.getElementById('btnBaixarPDF');
 		btnBaixar.addEventListener('click', () => {
@@ -1031,7 +1077,21 @@ document.addEventListener('DOMContentLoaded', () => {
 			const mascara = IMask(inputTelefone, mascaraTelefone);
 		}
 
-	carregarAssetsKonva();
+		document.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            
+            if (tr && tr.nodes().length > 0) {
+                
+                const itemSelecionado = tr.nodes()[0];
+                
+                itemSelecionado.destroy();
+                tr.nodes([]);
+                objectLayer.batchDraw();
+                
+                e.preventDefault(); 
+            }
+        }
+    });
 
 		document.getElementById('tool-pc').addEventListener('dragstart', (e) => {
 			dragItemId = e.target.id;
@@ -1097,7 +1157,7 @@ function exportarParaExcel() {
 	XLSX.writeFile(wb, nomeArquivo);
 }
 
-// ===== Alternância de Tema (Dark / Light) =====
+// ===== Alternância de Tema =====
 const btnTema = document.getElementById("toggleTema");
 
 const temaSalvo = localStorage.getItem("tema");
