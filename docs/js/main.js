@@ -743,47 +743,86 @@ function inicializarCanvas() {
     if (stage) return;
 
     const container = document.getElementById('container-canvas');
-    if (!container) return;
-
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    if (!container) {
+        console.error("Erro: Container 'container-canvas' não encontrado.");
+        return;
+    }
 
     stage = new Konva.Stage({
         container: container.id,
-        width: width,
-        height: height,
+        width: container.clientWidth || 800,
+        height: container.clientHeight || 600,
     });
 
     backgroundLayer = new Konva.Layer();
     objectLayer = new Konva.Layer();
     stage.add(backgroundLayer, objectLayer);
 
+    const fundoBranco = new Konva.Rect({
+        x: 0,
+        y: 0,
+        width: stage.width(),
+        height: stage.height(),
+        fill: 'white',
+        name: 'fundo-base',
+        listening: true
+    });
+    backgroundLayer.add(fundoBranco);
+
+
     tr = new Konva.Transformer({
         nodes: [],
         keepRatio: true,
         enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-        rotateAnchorOffset: 60,
+        rotateAnchorOffset: 30,
+        ignoreStroke: true,
     });
     objectLayer.add(tr);
 
-    stage.on('click tap', function (e) {
-		console.log("Clicou em:", e.target.attrs.name || "Objeto sem nome");
-        if (e.target === stage) {
+    const resizeObserver = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+            const newWidth = entry.contentRect.width;
+            const newHeight = entry.contentRect.height;
+
+            if (newWidth > 0 && newHeight > 0) {
+                
+                stage.width(newWidth);
+                stage.height(newHeight);
+
+                fundoBranco.width(newWidth);
+                fundoBranco.height(newHeight);
+
+                stage.batchDraw();
+            }
+        }
+    });
+    
+    resizeObserver.observe(container);
+
+    stage.on('mousedown touchstart', function (e) {
+        const clicado = e.target;
+        if (clicado.getParent() && clicado.getParent().className === 'Transformer') return;
+
+        if (clicado.name() === 'item-desenho') {
+            const selecionados = tr.nodes();
+            if (selecionados.length > 0 && selecionados[0] === clicado) return;
+            tr.nodes([clicado]);
+            objectLayer.batchDraw();
+            return;
+        }
+
+        const clicouNoFundoBranco = clicado.name() === 'fundo-base';
+        const clicouNoStage = clicado === stage;
+        const clicouNaLayerFundo = clicado.getLayer() === backgroundLayer;
+
+        if (clicouNoStage || clicouNoFundoBranco || clicouNaLayerFundo) {
             tr.nodes([]);
-            tr.getLayer().batchDraw();
+            objectLayer.batchDraw();
             return;
         }
-
-        if (!e.target.hasName('item-desenho')) {
-            return;
-        }
-
-        const itemClicado = e.target;
-        tr.nodes([itemClicado]);
-        tr.getLayer().batchDraw();
     });
 
-    console.log("Canvas Konva inicializado.");
+    console.log("Canvas inicializado (Modo Responsivo).");
 
     container.addEventListener('dragover', (e) => { e.preventDefault(); });
     container.addEventListener('drop', (e) => {
@@ -855,17 +894,26 @@ function carregarPlantaBaixa(event) {
 // -------------------------------------------------------------------
 
 function carregarAssetsKonva() {
-	konvaImages['tool-pc'] = new Image();
-	konvaImages['tool-pc'].crossOrigin = "Anonymous"; 
+    const listaDeIcones = [
+        { id: 'tool-rede-parede', url: 'https://img.icons8.com/ios-filled/50/ethernet-on.png' },
+        { id: 'tool-rede-teto',   url: 'https://img.icons8.com/ios-filled/50/ceiling-light.png' },
+        { id: 'tool-wifi',        url: 'https://img.icons8.com/ios-filled/50/wifi-router.png' },
+        { id: 'tool-switch',      url: 'https://img.icons8.com/ios-filled/50/router.png' },
+        { id: 'tool-camera',      url: 'https://img.icons8.com/ios-filled/50/bullet-camera.png' },
+        { id: 'tool-pc',          url: 'https://img.icons8.com/ios-filled/50/workstation.png' }
+    ];
 
-	konvaImages['tool-pc'].src = 'https://img.icons8.com/ios-filled/50/workstation.png?v=1'; 
-	konvaImages['tool-pc'].onerror = () => console.error("Falha ao carregar ícone PC");
+    listaDeIcones.forEach(item => {
+        konvaImages[item.id] = new Image();
+        konvaImages[item.id].crossOrigin = "Anonymous";
+        konvaImages[item.id].src = item.url;
+        
+        konvaImages[item.id].onerror = () => {
+            console.error(`Falha ao carregar asset: ${item.id}`);
+        };
+    });
 
-	konvaImages['tool-switch'] = new Image();
-	konvaImages['tool-switch'].crossOrigin = "Anonymous"; 
-
-	konvaImages['tool-switch'].src = 'https://img.icons8.com/ios-filled/50/router.png?v=1'; 
-	konvaImages['tool-switch'].onerror = () => console.error("Falha ao carregar ícone Switch");
+    console.log(`Assets carregados: ${listaDeIcones.length} ícones processados.`);
 }
 
 function adicionarItemCanvas(x, y, tipoIcone) {
@@ -1024,86 +1072,90 @@ function limparCanvas() {
 // -------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
-	// Define a aba "Orçamentos" como padrão
-	mostrarSecao('orcamentos');
+    mostrarSecao('orcamentos');
 
-	// Carrega dados essenciais
-	carregarClientesGlobal();
-	carregarProdutosGlobal();
+    // Carrega listas globais
+    carregarClientesGlobal();
+    carregarProdutosGlobal();
 
-	// Carrega a lista inicial
-	carregarClientes();
-	carregarProdutos();
-	carregarOrcamentos();
-	carregarCategorias();
+    // Carrega tabelas
+    carregarClientes();
+    carregarProdutos();
+    carregarOrcamentos();
+    carregarCategorias();
 
-	// Carrega o Konva
-	carregarAssetsKonva();
+    // Carrega Kanvas
+    inicializarCanvas();
+    carregarAssetsKonva();
 
-	const btnBaixar = document.getElementById('btnBaixarPDF');
-		btnBaixar.addEventListener('click', () => {
+    const ferramentas = document.querySelectorAll('.tool-item');
 
-			const elemento = document.getElementById('modalContentPDF');
+    ferramentas.forEach(icone => {
+        icone.addEventListener('dragstart', (e) => {
+            dragItemId = e.target.id;
+        });
+    });
 
-			const opt = {
-				margin: 0.5,
-				filename: `orcamento_${idOrcamentoAberto}.pdf`,
-				image: { type: 'jpeg', quality: 0.98 },
-				html2canvas: { scale: 2 },
-		backgroundColor: '#ffffffff',
-			jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-			};
+    const btnClear = document.getElementById('btnLimparCanvas');
+    if (btnClear) {
+        btnClear.addEventListener('click', limparCanvas);
+    }
 
-		elemento.classList.add('pdf-export-mode');
+    const btnPng = document.getElementById('btnExportarPNG');
+    if (btnPng) {
+        btnPng.addEventListener('click', exportarCanvasPNG);
+    }
 
-		html2pdf().from(elemento).set(opt).save().then(() => {
-
-			elemento.classList.remove('pdf-export-mode');
-			});
-		});
-
-		const btnExportarExcel = document.getElementById('btnExportarXLSX');
-			btnExportarExcel.addEventListener('click', exportarParaExcel);
-
-		const inputTelefone = document.getElementById('telefone');
-
-		if (inputTelefone) {
-			const mascaraTelefone = {
-				mask: [
-					{ mask: '(00) 0000-0000' },
-					{ mask: '(00) 00000-0000' }
-				]
-			};
-			const mascara = IMask(inputTelefone, mascaraTelefone);
-		}
-
-		document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', (e) => {
         if (e.key === 'Delete' || e.key === 'Backspace') {
-            
             if (tr && tr.nodes().length > 0) {
-                
                 const itemSelecionado = tr.nodes()[0];
-                
                 itemSelecionado.destroy();
                 tr.nodes([]);
-                objectLayer.batchDraw();
-                
-                e.preventDefault(); 
+                if (objectLayer) objectLayer.batchDraw();
+                e.preventDefault();
             }
         }
     });
 
-		document.getElementById('tool-pc').addEventListener('dragstart', (e) => {
-			dragItemId = e.target.id;
-		});
-		document.getElementById('tool-switch').addEventListener('dragstart', (e) => {
-			dragItemId = e.target.id;
-		});
-	document.getElementById('btnExportarPNG').addEventListener('click', exportarCanvasPNG);
-	const btnClear = document.getElementById('btnLimparCanvas');
-		if (btnClear) {
-			btnClear.addEventListener('click', limparCanvas);
-		}
+    const btnBaixar = document.getElementById('btnBaixarPDF');
+    if (btnBaixar) {
+        btnBaixar.addEventListener('click', () => {
+            const elemento = document.getElementById('modalContentPDF');
+            const opt = {
+                margin: 0.5,
+                filename: `orcamento_${idOrcamentoAberto}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,
+                    backgroundColor: '#ffffff'
+                },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            elemento.classList.add('pdf-export-mode');
+
+            html2pdf().from(elemento).set(opt).save().then(() => {
+                elemento.classList.remove('pdf-export-mode');
+            });
+        });
+    }
+
+    const btnExportarExcel = document.getElementById('btnExportarXLSX');
+    if (btnExportarExcel) {
+        btnExportarExcel.addEventListener('click', exportarParaExcel);
+    }
+
+    const inputTelefone = document.getElementById('telefone');
+    if (inputTelefone) {
+        const mascaraTelefoneOpts = {
+            mask: [
+                { mask: '(00) 0000-0000' },
+                { mask: '(00) 00000-0000' }
+            ]
+        };
+        mascaraTelefoneObj = IMask(inputTelefone, mascaraTelefoneOpts);
+    }
 });
 
 // -------------------------------------------------------------------
