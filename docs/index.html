@@ -211,84 +211,82 @@
 			</form>
 		</section>
 
-		<!-- DESENHO -->
 		<section id="secaoDesenho" class="hidden">
 			<h1>Módulo de Desenho Técnico</h1>
 
 			<div class="toolbar-desenho">
 				<label for="inputPlantaBaixa" class="btn-transferencia">
 					Importar Planta Baixa
-					</label>
-					<input type="file" id="inputPlantaBaixa" accept="image/*" class="hidden">
+				</label>
+				<input type="file" id="inputPlantaBaixa" accept="image/*" class="hidden">
 
-					<div class="toolbox" style="background-color: rgba(240, 248, 255, 0); border: none;">
-						</div>
+				<button id="btnExportarPNG" class="btn-transferencia" style="margin-left: auto;">
+					Exportar como PNG
+				</button>
 
-					<button id="btnExportarPNG" class="btn-transferencia" style="margin-left: auto;">
-						Exportar como PNG
-					</button>
-					<button type="button" id="btnLimparCanvas" class="btn-perigo" title="Limpar tudo" style="
-						background-color: #ff0000;
-						color: var(--primary-text, #fff);
-						padding: 10px 18px;
-						border: none;
-						border-radius: 8px;
-						font-size: 0.95rem;
-						font-weight: 500;
-						cursor: pointer;
-						transition: background-color .15s 
-						ease, transform .15s 
-						ease, box-shadow .15s 
-						ease;
-						display: inline-flex;
-						align-items: center;
-						gap: 8px;
-						box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-					">
-						Limpar
-					</button> 
-					</div>
+				<button type="button" id="btnLimparCanvas" class="btn-perigo" title="Limpar tudo" style="
+				background-color: #ff0000;
+				color: var(--primary-text, #fff);
+				padding: 10px 18px;
+				border: none;
+				border-radius: 8px;
+				font-size: 0.95rem;
+				font-weight: 500;
+				cursor: pointer;
+				transition: background-color .15s ease, transform .15s ease, box-shadow .15s ease;
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+				">
+					Limpar
+				</button> 
+				</div>
 
 				<div class="toolbox">
+
+					<span class="toolbox-title">Ferramentas:</span>
+
+					<div class="tools-control" style="margin-bottom: 15px;">
+						<div style="margin-bottom: 10px;">
+							<label for="corLinha" style="font-size: 12px; display:block; margin-bottom:5px;">Cor do Cabo:</label>
+							<input type="color" id="corLinha" value="#000000" style="width: 100%; height: 35px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px;">
+						</div>
+
+						<div style="display: flex; gap: 5px;">
+							<button id="btnModoCursor" class="btn-tool active" title="Modo Seleção (Mover e Editar)">
+								👆 Cursor
+							</button>
+							<button id="btnModoLinha" class="btn-tool" title="Modo Desenhar Cabo">
+								✏️ Cabo
+							</button>
+						</div>
+					</div>
+
+					<hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+
 					<span class="toolbox-title">Arraste para o canvas:</span>
 
-					<img src="https://img.icons8.com/ios-filled/50/workstation.png" 
-						id="tool-pc" 
-						class="tool-item" 
-						title="Ponto de Rede / PC" 
-						draggable="true">
+					<div class="icons-grid" style="display: flex; flex-wrap: wrap; gap: 10px;">
+						<img src="https://img.icons8.com/ios-filled/50/workstation.png" 
+							id="tool-pc" class="tool-item" title="PC / Workstation" draggable="true">
 
-					<img src="https://img.icons8.com/ios-filled/50/router.png" 
-						id="tool-switch" 
-						class="tool-item" 
-						title="Switch / Roteador" 
-						draggable="true">
+						<img src="https://img.icons8.com/ios-filled/50/router.png" 
+							id="tool-switch" class="tool-item" title="Switch / Roteador" draggable="true">
 
-					<img src="https://img.icons8.com/ios-filled/50/ethernet-on.png" 
-						id="tool-rede-parede" 
-						class="tool-item" 
-						title="Ponto de Rede (Parede)" 
-						draggable="true">
+						<img src="https://img.icons8.com/ios-filled/50/ethernet-on.png" 
+							id="tool-rede-parede" class="tool-item" title="Ponto de Rede (Parede)" draggable="true">
 
-					<img src="https://img.icons8.com/ios-filled/50/ceiling-light.png" 
-						id="tool-rede-teto" 
-						class="tool-item" 
-						title="Ponto de Rede (Teto)" 
-						draggable="true">
+						<img src="https://img.icons8.com/ios-filled/50/ceiling-light.png" 
+							id="tool-rede-teto" class="tool-item" title="Ponto de Rede (Teto)" draggable="true">
 
-					<img src="https://img.icons8.com/ios-filled/50/wifi-router.png" 
-						id="tool-wifi" 
-						class="tool-item" 
-						title="Roteador Wi-Fi" 
-						draggable="true">
+						<img src="https://img.icons8.com/ios-filled/50/wifi-router.png" 
+							id="tool-wifi" class="tool-item" title="Wi-Fi" draggable="true">
 
-					<img src="https://img.icons8.com/ios-filled/50/bullet-camera.png" 
-						id="tool-camera" 
-						class="tool-item" 
-						title="Câmera" 
-						draggable="true">
+						<img src="https://img.icons8.com/ios-filled/50/bullet-camera.png" 
+							id="tool-camera" class="tool-item" title="Câmera" draggable="true">
 					</div>
-			</div>
+				</div>
 
 			<div id="container-canvas"></div>
 		</section>
@@ -323,6 +321,14 @@
 			<h3 class="total-temp" id="modalValorTotal">Total: R$ 0.00</h3>
 		</div>
 	</div>
+
+	<footer class="footer">
+		<div class="footer-content">
+			<p><strong>SIOR - Sistema de Orçamentação e Rede</strong></p>
+			<p>Trabalho de Conclusão de Curso • Desenvolvido por Davi Robson</p>
+			<p>Versão 1.0 • © 2025</p>
+		</div>
+	</footer>
 
 	<script type="module" src="js/main.js"></script>
 </body>

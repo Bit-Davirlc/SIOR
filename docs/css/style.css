@@ -52,6 +52,7 @@ main {
 }
 
 .navbar {
+	position: sticky;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -297,151 +298,187 @@ tbody tr:hover {
 }
 
 .toolbar-desenho {
-    padding: 12px 15px;
-    border-radius: 8px;
-    margin-bottom: 18px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-    border: 1px solid var(--card-border, #dcdcdc);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+	padding: 12px 15px;
+	border-radius: 8px;
+	margin-bottom: 18px;
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	flex-wrap: wrap;
+	border: 1px solid var(--card-border, #dcdcdc);
+	box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .toolbar-desenho input[type="file"].hidden {
-    display: none;
+	display: none;
 }
 
 .toolbar-desenho .btn-secundario {
-    display: inline-block;
+	display: inline-block;
+}
+
+.btn-tool {
+    flex: 1;
+    padding: 8px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-tool.active {
+    background-color: #4a90e2;
+    color: white;
+    border-color: #357abd;
+    font-weight: bold;
+}
+
+.btn-tool:hover {
+    background-color: #e0e0e0;
 }
 
 #container-canvas {
-    display: block;
-    width: 100%;
-    height: calc(100vh - 180px); 
-    background-color: var(--canvas-bg, #ffffff);
-    border: 1px solid var(--card-border, #ccc);
-    border-radius: 8px;
-    box-sizing: border-box;
-    margin-top: 10px;
-    overflow: hidden;
+	display: block;
+	width: 100%;
+	height: calc(100vh - 180px); 
+	background-color: var(--canvas-bg, #ffffff);
+	border: 1px solid var(--card-border, #ccc);
+	border-radius: 8px;
+	box-sizing: border-box;
+	margin-top: 10px;
+	overflow: hidden;
 }
 
-/* -----------------------------------------------------------
-   TOOLBOX LATERAL
------------------------------------------------------------ */
-
 .toolbox {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding-left: 20px;
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: 1px solid var(--card-border, #ccc);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding-left: 20px;
+	padding: 10px 16px;
+	border-radius: 8px;
+	border: 1px solid var(--card-border, #ccc);
+	box-shadow: 0 2px 4px rgba(0,0,0,0.06);
 }
 
 .toolbox-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text, #585858);
-    letter-spacing: .3px;
-    text-transform: uppercase;
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: var(--text, #585858);
+	letter-spacing: .3px;
+	text-transform: uppercase;
 }
 
 .tool-item {
-    width: 42px;
-    height: 42px;
-    cursor: grab;
-    padding: 6px;
-    border-radius: 6px;
-    background-color: var(--card-bg, #fff);
-    border: 1px solid var(--card-border, #ccc);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background-color .15s ease, transform .15s ease;
+	width: 42px;
+	height: 42px;
+	cursor: grab;
+	padding: 6px;
+	border-radius: 6px;
+	background-color: var(--card-bg, #fff);
+	border: 1px solid var(--card-border, #ccc);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	transition: background-color .15s ease, transform .15s ease;
 }
 
 .tool-item:hover {
-    background-color: var(--hover-bg, #e5e5e5);
-    transform: scale(1.04);
+	background-color: var(--hover-bg, #e5e5e5);
+	transform: scale(1.04);
 }
 
 .btn-imprimir {
-    float: right;
-    margin-right: 30px;
+	float: right;
+	margin-right: 30px;
 }
 
 .btn-transferencia {
-    background-color: var(--primary-bg, #007bff);
-    color: var(--primary-text, #fff);
-    padding: 10px 18px;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color .15s ease, transform .15s ease, box-shadow .15s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+	background-color: var(--primary-bg, #007bff);
+	color: var(--primary-text, #fff);
+	padding: 10px 18px;
+	border: none;
+	border-radius: 8px;
+	font-size: 0.95rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color .15s ease, transform .15s ease, box-shadow .15s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
 .btn-transferencia:hover {
-    background-color: var(--primary-hover, #0069d9);
-    transform: scale(1.03);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+	background-color: var(--primary-hover, #0069d9);
+	transform: scale(1.03);
+	box-shadow: 0 3px 6px rgba(0,0,0,0.12);
 }
 
 .btn-transferencia:active {
-    transform: scale(0.98);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+	transform: scale(0.98);
+	box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
 .btn-transferencia:disabled {
-    background-color: var(--disabled-bg, #cccccc);
-    color: var(--disabled-text, #666666);
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+	background-color: var(--disabled-bg, #cccccc);
+	color: var(--disabled-text, #666666);
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+}
+
+.footer {
+	font-size: 0.875rem;
+	text-align: center;
+	color: var(--textmenu-color);
+	padding-top: 2rem;
+}
+
+
+.footer a {
+	color: var(--primary-text, #fff);
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.footer a:hover {
+	text-decoration: underline;
 }
 
 /* -----------------------------------------------------------
-   IMPRESSÃO / EXPORTAÇÃO PDF
+	IMPRESSÃO / EXPORTAÇÃO PDF
 ----------------------------------------------------------- */
 
 @media print {
 
-    .modal-close-btn,
-    #btnBaixarPDF {
-        display: none !important;
-    }
+	.modal-close-btn,
+	#btnBaixarPDF {
+		display: none !important;
+	}
 
-    #modalContentPDF,
-    #modalContentPDF h2,
-    #modalContentPDF h3,
-    #modalContentPDF p,
-    #modalContentPDF strong,
-    #modalContentPDF span,
-    #modalContentPDF th,
-    #modalContentPDF td {
-        color: white !important;
-    }
+	#modalContentPDF,
+	#modalContentPDF h2,
+	#modalContentPDF h3,
+	#modalContentPDF p,
+	#modalContentPDF strong,
+	#modalContentPDF span,
+	#modalContentPDF th,
+	#modalContentPDF td {
+		color: white !important;
+	}
 
-    #modalTabelaItens th,
-    #modalTabelaItens td,
-    #modalValorTotal {
-        background-color: transparent !important;
-    }
+	#modalTabelaItens th,
+	#modalTabelaItens td,
+	#modalValorTotal {
+		background-color: transparent !important;
+	}
 }
 
 .pdf-export-mode {
-    max-height: none !important;
-    overflow-y: visible !important;
+	max-height: none !important;
+	overflow-y: visible !important;
 }
 
 /* ======================================= */
@@ -449,35 +486,35 @@ tbody tr:hover {
 /* ======================================= */
 
 [data-descricao] {
-    position: relative;
-    cursor: help;
+	position: relative;
+	cursor: help;
 }
 
 [data-descricao]::after {
-    content: attr(data-descricao);
-    position: absolute;
-    z-index: 1000;
-    
-    bottom: 110%; 
-    left: 50%;
-    transform: translateX(-50%);
+	content: attr(data-descricao);
+	position: absolute;
+	z-index: 1000;
 
-    background-color: #1e1e1e;
-    color: #f0f0f0;
-    padding: 8px 12px;
-    border-radius: 4px;
-    border: 1px solid #444;
-    font-size: 0.85em;
-    white-space: pre-wrap;
-    min-width: 200px;
-    max-width: 300px;
-    
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
+	bottom: 110%; 
+	left: 50%;
+	transform: translateX(-50%);
+
+	background-color: #1e1e1e;
+	color: #f0f0f0;
+	padding: 8px 12px;
+	border-radius: 4px;
+	border: 1px solid #444;
+	font-size: 0.85em;
+	white-space: pre-wrap;
+	min-width: 200px;
+	max-width: 300px;
+
+	visibility: hidden;
+	opacity: 0;
+	transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 [data-descricao]:hover::after {
-    visibility: visible;
-    opacity: 1;
+	visibility: visible;
+	opacity: 1;
 }

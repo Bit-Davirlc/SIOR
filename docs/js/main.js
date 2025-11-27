@@ -15,12 +15,17 @@ let itensOrcamentoTemporario = [];
 let idOrcamentoAberto = 0;
 let orcamentoAbertoAtual = null;
 let konvaImages = {};
+let assetsProntos = false;
 let stage = null;
 let backgroundLayer = null;
 let objectLayer = null;
 let tr = null;
 let dragItemId = null;
 let mascaraTelefoneObj = null;
+let modoEdicao = 'cursor';
+let isDrawing = false;
+let linhaAtual = null;
+let corAtual = '#000000';
 
 // -------------------------------------------------------------------
 // 3. SELETORES GERAIS (NAVEGAÇÃO E SEÇÕES)
@@ -743,15 +748,15 @@ function inicializarCanvas() {
     if (stage) return;
 
     const container = document.getElementById('container-canvas');
-    if (!container) {
-        console.error("Erro: Container 'container-canvas' não encontrado.");
-        return;
-    }
+    if (!container) return;
+
+    const width = container.clientWidth || 800;
+    const height = container.clientHeight || 600;
 
     stage = new Konva.Stage({
         container: container.id,
-        width: container.clientWidth || 800,
-        height: container.clientHeight || 600,
+        width: width,
+        height: height,
     });
 
     backgroundLayer = new Konva.Layer();
@@ -759,77 +764,99 @@ function inicializarCanvas() {
     stage.add(backgroundLayer, objectLayer);
 
     const fundoBranco = new Konva.Rect({
-        x: 0,
-        y: 0,
-        width: stage.width(),
-        height: stage.height(),
-        fill: 'white',
-        name: 'fundo-base',
-        listening: true
+        x: 0, y: 0, width: width, height: height,
+        fill: 'white', name: 'fundo-base', listening: true
     });
     backgroundLayer.add(fundoBranco);
 
-
     tr = new Konva.Transformer({
-        nodes: [],
-        keepRatio: true,
+        nodes: [], keepRatio: true,
         enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-        rotateAnchorOffset: 30,
-        ignoreStroke: true,
+        rotateAnchorOffset: 30, ignoreStroke: true,
     });
     objectLayer.add(tr);
 
     const resizeObserver = new ResizeObserver((entries) => {
         for (let entry of entries) {
-            const newWidth = entry.contentRect.width;
-            const newHeight = entry.contentRect.height;
-
-            if (newWidth > 0 && newHeight > 0) {
-                
-                stage.width(newWidth);
-                stage.height(newHeight);
-
-                fundoBranco.width(newWidth);
-                fundoBranco.height(newHeight);
-
+            const w = entry.contentRect.width;
+            const h = entry.contentRect.height;
+            if (w > 0 && h > 0) {
+                stage.width(w); stage.height(h);
+                fundoBranco.width(w); fundoBranco.height(h);
                 stage.batchDraw();
             }
         }
     });
-    
     resizeObserver.observe(container);
 
-    stage.on('mousedown touchstart', function (e) {
+    stage.on('mousedown touchstart', (e) => {
+        if (modoEdicao === 'linha') {
+            isDrawing = true;
+            const pos = stage.getRelativePointerPosition();
+            
+            linhaAtual = new Konva.Line({
+                stroke: corAtual,
+                strokeWidth: 4,
+                points: [pos.x, pos.y, pos.x, pos.y],
+                lineCap: 'round',
+                lineJoin: 'round',
+                name: 'item-desenho',
+                draggable: false
+            });
+            objectLayer.add(linhaAtual);
+            return;
+        }
+
         const clicado = e.target;
+
         if (clicado.getParent() && clicado.getParent().className === 'Transformer') return;
 
         if (clicado.name() === 'item-desenho') {
             const selecionados = tr.nodes();
             if (selecionados.length > 0 && selecionados[0] === clicado) return;
+            
             tr.nodes([clicado]);
             objectLayer.batchDraw();
             return;
         }
 
-        const clicouNoFundoBranco = clicado.name() === 'fundo-base';
-        const clicouNoStage = clicado === stage;
-        const clicouNaLayerFundo = clicado.getLayer() === backgroundLayer;
+        tr.nodes([]);
+        objectLayer.batchDraw();
+    });
 
-        if (clicouNoStage || clicouNoFundoBranco || clicouNaLayerFundo) {
-            tr.nodes([]);
-            objectLayer.batchDraw();
-            return;
+    stage.on('mousemove touchmove', () => {
+        if (!isDrawing || modoEdicao !== 'linha') return;
+        
+        const pos = stage.getRelativePointerPosition();
+        const pontos = linhaAtual.points();
+        
+        pontos[2] = pos.x;
+        pontos[3] = pos.y;
+        
+        linhaAtual.points(pontos);
+        objectLayer.batchDraw();
+    });
+
+    stage.on('mouseup touchend', () => {
+        if (isDrawing) {
+            isDrawing = false;
+            linhaAtual = null;
         }
     });
 
-    console.log("Canvas inicializado (Modo Responsivo).");
+    console.log("Canvas inicializado.");
 
     container.addEventListener('dragover', (e) => { e.preventDefault(); });
     container.addEventListener('drop', (e) => {
         e.preventDefault();
-        if (dragItemId === null) return;
+        if (modoEdicao !== 'cursor') {
+            return; 
+        } 
+        
+        if (!dragItemId) return;
+        
         stage.setPointersPositions(e);
-        const pos = stage.getPointerPosition();
+        const pos = stage.getRelativePointerPosition();
         adicionarItemCanvas(pos.x, pos.y, dragItemId);
         dragItemId = null;
     });
@@ -893,7 +920,61 @@ function carregarPlantaBaixa(event) {
 // 9.5: FUNÇÕES GLOBAIS DE DESENHO
 // -------------------------------------------------------------------
 
-function carregarAssetsKonva() {
+function configurarFerramentasDesenho() {
+    const btnCursor = document.getElementById('btnModoCursor');
+    const btnLinha = document.getElementById('btnModoLinha');
+    const inputCor = document.getElementById('corLinha');
+
+    if (!btnCursor || !btnLinha || !inputCor) return;
+
+    btnCursor.addEventListener('click', () => {
+        modoEdicao = 'cursor';
+        
+        btnCursor.classList.add('active');
+        btnLinha.classList.remove('active');
+        
+        if (objectLayer) {
+            objectLayer.find('.item-desenho').forEach(el => {
+                if (el.getClassName() !== 'Line') {
+                    el.draggable(true);
+                }
+            });
+        }
+    });
+
+    btnLinha.addEventListener('click', () => {
+        modoEdicao = 'linha';
+        
+        btnLinha.classList.add('active');
+        btnCursor.classList.remove('active');
+        
+        if (tr) {
+            tr.nodes([]);
+            objectLayer.batchDraw();
+        }
+
+        if (objectLayer) {
+            objectLayer.find('.item-desenho').forEach(el => el.draggable(false));
+        }
+    });
+
+    inputCor.addEventListener('input', (e) => {
+        corAtual = e.target.value;
+        
+        const preview = document.querySelector('.color-preview');
+        if(preview) preview.style.backgroundColor = corAtual;
+
+        if (tr && tr.nodes().length > 0) {
+            const item = tr.nodes()[0];
+            if (item.className === 'Line') {
+                item.stroke(corAtual);
+                objectLayer.batchDraw();
+            }
+        }
+    });
+}
+
+function carregarAssetsKonva(onFinish = null) {
     const listaDeIcones = [
         { id: 'tool-rede-parede', url: 'https://img.icons8.com/ios-filled/50/ethernet-on.png' },
         { id: 'tool-rede-teto',   url: 'https://img.icons8.com/ios-filled/50/ceiling-light.png' },
@@ -903,55 +984,76 @@ function carregarAssetsKonva() {
         { id: 'tool-pc',          url: 'https://img.icons8.com/ios-filled/50/workstation.png' }
     ];
 
-    listaDeIcones.forEach(item => {
-        konvaImages[item.id] = new Image();
-        konvaImages[item.id].crossOrigin = "Anonymous";
-        konvaImages[item.id].src = item.url;
-        
-        konvaImages[item.id].onerror = () => {
-            console.error(`Falha ao carregar asset: ${item.id}`);
-        };
-    });
+    let total = listaDeIcones.length;
+    let carregados = 0;
 
-    console.log(`Assets carregados: ${listaDeIcones.length} ícones processados.`);
+    listaDeIcones.forEach(item => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+
+        img.onload = () => {
+            carregados++;
+            konvaImages[item.id] = img;
+
+            if (carregados === total) {
+                assetsProntos = true;
+                console.log(`✔ Todos os ${total} ícones carregados.`);
+
+                if (typeof onFinish === "function") {
+                    onFinish();
+                }
+            }
+        };
+
+        img.onerror = () => {
+            console.error(`❌ Falha ao carregar asset: ${item.id}`);
+        };
+
+        img.src = item.url;
+    });
 }
 
 function adicionarItemCanvas(x, y, tipoIcone) {
-    const imagemPreCarregada = konvaImages[tipoIcone];
-
-    if (!imagemPreCarregada) {
-        if (typeof showToastError === 'function') {
-            showToastError("Erro: Ícone ainda não carregado ou não encontrado.");
-        } else {
-            console.error("Erro: Imagem não encontrada em konvaImages para:", tipoIcone);
-        }
-        return; 
+    if (!assetsProntos) {
+        showToastError?.("Aguarde! Ícones ainda estão carregando.");
+        return;
     }
 
-    const konvaImage = new Konva.Image({
-        x: x,
-        y: y,
-        image: imagemPreCarregada,
-        width: 50,
-        height: 50,
+    const imagemBase = konvaImages[tipoIcone];
+
+    if (!imagemBase) {
+        showToastError?.("Erro: Ícone não encontrado ou ainda não carregado.");
+        console.error("Imagem ausente:", tipoIcone);
+        return;
+    }
+
+    const node = new Konva.Image({
+        x,
+        y,
+        image: imagemBase,
+        width: 45,
+        height: 45,
         draggable: true,
-        name: 'item-desenho'
+        name: ["item-desenho"] 
     });
 
-    konvaImage.on('mouseenter', function () {
-        stage.container().style.cursor = 'move';
-    });
-    konvaImage.on('mouseleave', function () {
-        stage.container().style.cursor = 'default';
-    });
+    node.on("mouseenter", () => stage.container().style.cursor = "move");
+    node.on("mouseleave", () => stage.container().style.cursor = "default");
 
-    objectLayer.add(konvaImage);
-    objectLayer.batchDraw();
+    objectLayer.add(node);
+    objectLayer.draw();
 
     if (tr) {
-        tr.nodes([konvaImage]);
-        tr.getLayer().batchDraw(); 
+        tr.nodes([node]);
+        tr.getLayer().batchDraw();
     }
+
+    setTimeout(() => {
+        const itens = objectLayer.find(n => n.hasName?.("item-desenho"));
+        console.log("Itens encontrados após adicionar:", itens.length);
+    }, 0);
+
+    return node;
 }
 
 // -------------------------------------------------------------------
@@ -1022,7 +1124,6 @@ modalContainer.addEventListener('click', (event) => {
 	}
 });
 
-// Gatilhos do Módulo de Desenho
 inputPlantaBaixa.addEventListener('change', carregarPlantaBaixa);
 
 navLinks.desenho.addEventListener('click', () => {
@@ -1032,37 +1133,66 @@ navLinks.desenho.addEventListener('click', () => {
 
 function limparCanvas() {
     Swal.fire({
-        title: 'Limpar o desenho?',
-        text: "Tem certeza? Todos os itens e a planta baixa serão removidos.",
+        title: 'Limpar desenho?',
+        text: "Tudo será removido, incluindo a planta baixa.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sim, limpar tudo!',
+        confirmButtonText: 'Sim, limpar',
         cancelButtonText: 'Cancelar'
     }).then((result) => {
-
+        
         if (result.isConfirmed) {
-            if (objectLayer && tr) { 
-                
-                tr.nodes([]);
-
-                const icones = objectLayer.find('.item-desenho');
-                icones.forEach(icone => {
-                    icone.destroy();
-                });
-
-                if (backgroundLayer) {
-                    backgroundLayer.destroyChildren();
-                    backgroundLayer.draw();
-                }
-
-                objectLayer.batchDraw();
-
-                showToastSuccess("Desenho e planta baixa limpos com sucesso!");
-            } else {
-                showToastError("Erro: Camadas não encontradas.");
+            
+            if (tr) {
+                tr.nodes([]); 
+                if (objectLayer) objectLayer.batchDraw();
             }
+
+            if (objectLayer) {
+                const children = objectLayer.getChildren();
+                
+                for (let i = children.length - 1; i >= 0; i--) {
+                    const node = children[i];
+                    
+                    try {
+                        if (node.getClassName() === 'Transformer') {
+                            continue;
+                        }
+
+                        const nomeNode = String(node.name() || '');
+
+                        if (nomeNode === 'item-desenho') {
+                            node.off(); 
+                            node.destroy();
+                        }
+                    } catch (erroInterno) {
+                        console.warn("Item corrompido ignorado durante a limpeza:", erroInterno);
+                    }
+                }
+                objectLayer.batchDraw();
+            }
+
+            if (backgroundLayer) {
+                const bgChildren = backgroundLayer.getChildren();
+                
+                for (let i = bgChildren.length - 1; i >= 0; i--) {
+                    const node = bgChildren[i];
+                    try {
+                        const nomeNode = String(node.name() || '');
+                        
+                        if (nomeNode !== 'fundo-base' && nomeNode !== 'grade-grid') {
+                            node.destroy();
+                        }
+                    } catch (e) {
+                        console.warn("Erro ao limpar background:", e);
+                    }
+                }
+                backgroundLayer.batchDraw();
+            }
+            
+            showToastSuccess("Canvas limpo com sucesso!");
         }
     });
 }
@@ -1085,8 +1215,10 @@ document.addEventListener('DOMContentLoaded', () => {
     carregarCategorias();
 
     // Carrega Kanvas
-    inicializarCanvas();
+	inicializarCanvas();
     carregarAssetsKonva();
+    configurarFerramentasDesenho();
+	
 
     const ferramentas = document.querySelectorAll('.tool-item');
 
